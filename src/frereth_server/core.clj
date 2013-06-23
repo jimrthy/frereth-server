@@ -1,7 +1,8 @@
 (ns frereth-server.core
   (:gen-class)
-  (:require [qbits.jilch.mq :as mq]
-            [frereth-server.config :as config]))
+  (:require ;[qbits.jilch.mq :as mq]
+   [zguide.zhelpers :as mq]
+   [frereth-server.config :as config]))
 
 (defn get-cpu-count 
   "How many CPUs are available?"
@@ -19,7 +20,7 @@
   [& args]
   ;; The basic gist:
   (let [thread-count (get-cpu-count)]
-    (mq/with-context context thread-count
+    (mq/with-context [context thread-count]
       (do
         ;; Note that config/*port* controls where to listen
         (with-open [socket (-> context
