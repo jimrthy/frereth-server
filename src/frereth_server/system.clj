@@ -37,7 +37,9 @@ and start it running. Returns an updated instance of the system."
         ;; These probably need to be something different
         client-sockets (mq/socket context mq/router)]
     ;; Using JNI, I can use shared memory sockets, can't I?
-    (mq/bind master-socket (format "tcp://localhost:%d" master-port))
+    ;; Whatever. Can't bind to a single dynamic hostname.
+    ;(mq/bind master-socket (format "tcp://localhost:%d" master-port))
+    (mq/bind master-socket (format "tcp://127.0.0.1:%d" master-port))
     ;; Want to be pickier about who can connect. Or, at least,
     ;; have the option to do so.
     ;; Honestly, this probably shouldn't be part of the overall
