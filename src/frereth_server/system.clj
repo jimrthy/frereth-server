@@ -21,12 +21,15 @@ and start it running. Returns an updated instance of the system."
   (assert (not @(:client-connections universe)))
 
   ;; Q: How many threads should I dedicate to the networking context?
-  ;; A: For now, run with "available - 1.
+  ;; A: For now, run with "available - 1."
   ;; This value will really vary according to need and is something
   ;; that is ripe for tweaking. In all honesty, it should probably
   ;; be 1 for now.
+  ;; FIXME: Load this from configuration.
+  ;; For that matter, really should be able to tweak it at runtime.
   (let [;; Actual networking context
-        context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
+        ;;context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
+        context (mq/context 1)
         ;; Where should the master server be listening?
         master-port config/master-port
         ;; Connection to localhost for Ultimate Power...
@@ -37,8 +40,11 @@ and start it running. Returns an updated instance of the system."
         ;; These probably need to be something different
         client-sockets (mq/socket context mq/router)]
     ;; Using JNI, I can use shared memory sockets, can't I?
-    ;; Whatever. Can't bind to a single dynamic hostname.
-    ;(mq/bind master-socket (format "tcp://localhost:%d" master-port))
+    ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
+    ;; Doesn't work on windows.
+    ;; Note that, on unix, we have to set up the named pipe.
+    ;; FIXME: Should probably plan on using that, if it's available.
+    ;; For now, it qualifies as premature optimization.
     (mq/bind master-socket (format "tcp://127.0.0.1:%d" master-port))
     ;; Want to be pickier about who can connect. Or, at least,
     ;; have the option to do so.
