@@ -124,7 +124,7 @@ resources. Returns an updated instance of the system, ready to re-start."
   [universe]
   (when universe
     ;; Signal to other threads that pieces are finished
-    (swap! (:done universe (constantly true)))
+    (swap! (:done universe) (constantly true))
     ;; Realistically, need to wait for them to finish up.
     ;; FIXME: Send a KILL request to the authentication thread
 

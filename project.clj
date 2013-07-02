@@ -11,5 +11,5 @@
                                   [org.clojure/java.classpath "0.2.0"]
                                   [speclj "2.5.0"]]}}
   :plugins [[speclj "2.5.0"]]
-  :test-path "spec/"
+  :test-paths ["spec/"]
   :main frereth-server.core)

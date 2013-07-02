@@ -16,6 +16,14 @@
   ;; Really just a placeholder message indicting that it's OK to quit
   "K")
 
+(defmethod dispatch "ping"
+  [_]
+  "pong")
+
+(defmethod dispatch :default
+  [echo]
+  echo)
+
 (defn- send-message
   "Like with read-message, this theoretically gets vaguely interesting with multi-part messages"
   [msg s]
