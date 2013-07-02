@@ -3,7 +3,7 @@
 ;;
 (ns zguide.zhelpers
   (:refer-clojure :exclude [send])
-  (:import [org.zeromq ZMQ ZMQ$Context ZMQ$Socket ZMQQueue])
+  (:import [org.zeromq ZMQ ZMQ$Context ZMQ$Socket ZMQ$Poller ZMQQueue])
   (:import (java.util Random)
            (java.nio ByteBuffer)))
 
@@ -16,19 +16,43 @@
      (try ~@body
           (finally (.term ~id)))))
 
+;; Non-blocking send/recv
+(def no-block ZMQ/NOBLOCK)
+(def dont-wait ZMQ/DONTWAIT)
+;; More message parts are coming
 (def sndmore ZMQ/SNDMORE)
+(def send-more ZMQ/SNDMORE)
 
-(def router ZMQ/XREP)
-(def dealer ZMQ/XREQ)
+;;; Socket types
+;; Request/Reply
 (def req ZMQ/REQ)
 (def rep ZMQ/REP)
-(def xreq ZMQ/XREQ)
-(def xrep ZMQ/XREP)
+;; Publish/Subscribe
 (def pub ZMQ/PUB)
 (def sub ZMQ/SUB)
-(def pair ZMQ/PAIR)
+;; Extended Publish/Subscribe
+(def x-pub ZMQ/XPUB)
+(def x-sub ZMQ/XSUB)
+;; Push/Pull
 (def push ZMQ/PUSH)
 (def pull ZMQ/PULL)
+;; Internal 1:1
+(def pair ZMQ/PAIR)
+
+;; Router/Dealer
+
+;; Creates/consumes request-reply routing envelopes.
+;; Lets you route messages to specific connections if you
+;; know their identities.
+(def router ZMQ/ROUTER)
+;; Combined ventilator/sink.
+;; Does load balancing on output and fair-queuing on input.
+;; Can shuffle messages out to N nodes then shuffle the replies back.
+;; Raw bidirectional async pattern.
+(def dealer ZMQ/DEALER)
+;; Obsolete names for Router/Dealer
+(def xreq ZMQ/XREQ)
+(def xrep ZMQ/XREP)
 
 (defn socket
   [#^ZMQ$Context context type]
@@ -97,8 +121,37 @@
         (recur (conj acc msg))
         (conj acc msg)))))
 
-(defn recv-str [#^ZMQ$Socket socket]
-  (-> socket recv String. .trim))
+(defn recv-str
+  ([#^ZMQ$Socket socket]
+      (-> socket recv String. .trim))
+  ([#^ZMQ$Socket socket flags]
+     ;; This approach risks NPE:
+     ;;(-> socket (recv flags) String. .trim)
+     (when-let [s (recv socket flags)]
+       (-> s String. .trim))))
+
+(defn poller
+  "Return a new Poller instance.
+Realistically, this shouldn't be public...it opens the door
+for some pretty low-level stuff."
+  [socket-count]
+  (ZMQ$Poller. socket-count))
+
+(def poll-in ZMQ$Poller/POLLIN)
+(def poll-out ZMQ$Poller/POLLOUT)
+
+(defn register-in
+  "Register a listening socket to poll on." 
+  [#^ZMQ$Socket socket #^ZMQ$Poller poller]
+  (.register poller socket poll-in))
+
+(defn socket-poller-in
+  "Get a poller attached to a seq of sockets"
+  [sockets]
+  (let [checker (poller (count sockets))]
+    (doseq [s sockets]
+      (register-in s checker))
+    checker))
 
 (defn dump
   [#^ZMQ$Socket socket]
