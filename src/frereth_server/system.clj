@@ -9,9 +9,16 @@
   "Returns a new instance of the whole application.
 I really need to figure out what I want to do here."
   []
-  {:network-context (atom nil)
+  {;; Process-wide context for zeromq. It doesn't seem
+   ;; likely to change at runtime, but it's possible.
+   ;; e.g. If we want to tweak its threads.
+   :network-context (atom nil)
+   ;; Actual controller socket.
+   ;; If the context changes, then all the sockets that use it must also.
    :master-connection (atom nil)
-   :broker (atom nil)})
+   :broker (atom nil)
+   ;; Signal everything that we're finished.
+   :done (atom nil)})
 
 (defn start
   "Performs side effects to initialize the system, acquire resources,
@@ -20,6 +27,7 @@ and start it running. Returns an updated instance of the system."
   ;; Some combination of doto and -> (->> ?) seems appropriate here
   (assert (not @(:network-context universe)))
   (assert (not @(:master-connection universe)))
+  ;; What on earth did I have planned for this?
   (assert (not @(:broker universe)))
   (assert (not @(:done universe)))
 
@@ -27,7 +35,7 @@ and start it running. Returns an updated instance of the system."
   (let [;; Let's be explicit about this:
         done (atom false)
 
-;; Actual networking context
+        ;; Actual networking context
         ;; Q: How many threads should I dedicate to the networking context?
         ;; A: For now, run with "available - 1."
         ;; This value will really vary according to need and is something
@@ -59,7 +67,9 @@ and start it running. Returns an updated instance of the system."
         ;; The 'actual client' sockets should probably be a
         ;; dealer/router pair. c.f. rrbroker.
         ;;client-sockets (mq/socket context mq/dealer)
-        auth-thread (auth/runner context done)]
+        auth-thread (auth/runner context done)
+
+        client-socket (mq/socket context mq/pub)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
@@ -97,13 +107,16 @@ and start it running. Returns an updated instance of the system."
     ;; polling on localhost, specifically for that?
     ;; Basic skeleton is done. c.f. authentication.clj.
 
-    (mq/bind client-sockets (format "tcp://*:%d" client-port))
+    (mq/bind client-socket (format "tcp://*:%d" client-port))
+
+    ;; Return the updated system.
     {:done done
      :network-context (atom context)
      ;; It's tempting to store these in atoms.
      ;; I'm not sure why I feel that temptation.
      :master-connection (atom master-socket)
-     :clients (atom client-sockets)}))
+     :clients (atom client-socket)
+     :authentication-thread (atom auth-thread)}))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
@@ -115,12 +128,18 @@ resources. Returns an updated instance of the system, ready to re-start."
     ;; Realistically, need to wait for them to finish up.
     ;; FIXME: Send a KILL request to the authentication thread
 
-    (when-let [context @(:network-context universe)]
+    (when-let [ctx @(:network-context universe)]
       (try
+        (let [auth-killer (mq/socket ctx mq/req)]
+          (mq/connect auth-killer (format "tcp://127.0.0.1:%d" config/auth-port))
+          (mq/send auth-killer "dieDieDIE!!")
+          ;; Wait for a response.
+          (mq/recv-str auth-killer))
         (when-let [sock (:clients universe)]
           (.close sock))
         (when-let [sock (:master-connection universe)]
           (.close sock))
         (finally
-          (.term context)))))
+          (.term ctx)))))
+  ;; Just return a completely fresh instance.
   (init))
