@@ -61,6 +61,27 @@
                 ;; life simpler from any angle that comes to mind.
                 ;; Dispatcher gets more complicated,but that isn't
                 ;; a big deal.
+                ;; Meh. Do the Q&A version or block sequence.
+                ;; Whatever. They should both work here.
+                ;; And I really don't care what they look like over
+                ;; the wire...until we get to security.
+                (let [login-sequence [["ib" "test"]
+                                      ["me-wantz-play" 
+                                       ;; Can I make a client dumber than this?
+                                       [:youre-kidding nil "login-id" nil]
+                                       ;; These represent multiple frames
+                                       ;; that would be received over the wire.
+                                       ;; And, of course, any decent server
+                                       ;; should reject crap like this.
+                                       ["Really secure signature"]]]
+                      ]
+                  ;; So...how does this work?
+                  (should false)))
+
+            (it "Painful Login Sequence"
+                ;; Q: Why am I even thinking about subjecting myself to this?
+                ;; A: Because this is what unit tests are for.
+                ;; Just write the obnoxious thing so it's documented.
                 (should false))))
 
 (run-specs)

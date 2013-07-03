@@ -104,7 +104,19 @@
      (send socket message ZMQ/NOBLOCK)))
 
 (defn send-more [#^ZMQ$Socket socket message]
-  (send socket message sndmore))
+  (send socket message send-more))
+
+(defn send-all [#^ZMQ$Socket socket messages]
+  "At this point, I'm basically envisioning the usage here as something like HTTP.
+Where the headers back and forth carry more data than the messages.
+This approach is a total cop-out.
+There's no way it's appropriate here.
+I just need to get something written for my
+\"get the rope thrown across the bridge\" approach.
+It totally falls apart when I'm just trying to send a string."
+  (doseq [m message]
+    (sendmore socket message))
+  (send socket ""))
 
 (defn identify
   [#^ZMQ$Socket socket #^String name]
@@ -118,11 +130,12 @@
 
 (defn recv-all
   [#^ZMQ$Socket socket flags]
-  (loop [acc '[]]
-    (let [msg (recv socket flags)]
+  (loop [acc []]
+    (let [msg (recv socket flags)
+          result (conj acc msg)]
       (if (.hasReceiveMore socket)
-        (recur (conj acc msg))
-        (conj acc msg)))))
+        (recur result)
+        result))))
 
 (defn recv-str
   ([#^ZMQ$Socket socket]

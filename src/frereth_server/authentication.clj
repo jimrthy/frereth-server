@@ -4,8 +4,7 @@
   (:gen-class))
 
 (defn- read-message [s]
-  ;; FIXME: Deal with multi-part messages
-  (mq/recv-str s))
+  (mq/recv-all s))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -23,7 +22,8 @@ switch to the new version. It seems like an interesting
 thought."
   (if (string? msg)
     msg
-    (if (seq msg)
+    (when (seq msg)
+      ;; Just got a batch of messages. What do they mean?
       (throw (RuntimeException. "Now things start to get interesting")))))
 
 (defmulti ^:private dispatch
@@ -44,9 +44,21 @@ thought."
   echo)
 
 (defn- send-message
-  "Like with read-message, this theoretically gets vaguely interesting with multi-part messages"
-  [msg s]
-  (mq/send s msg))
+  "Like with read-message, this theoretically gets vaguely interesting with multi-part messages.
+Oops. Backwards parameters."
+  [s msgs]
+  ;; Performance isn't a consideration, really.
+  ;; Is it?
+  ;; Not for authentication. We expect this to take a while.
+  ;; By its very nature, it pretty much has to.
+  (if (string? msgs)
+    (mq/send s msgs)
+    (do
+      ;; Just assume that means it's a sequence.
+      ;; I hate to break this up like this, but it just is not
+      ;; a performance-critical section.
+      ;; Probably.
+      (mq/send-all s msgs))))
 
 
 (defn- authenticator
