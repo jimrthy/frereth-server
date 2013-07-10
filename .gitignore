@@ -10,3 +10,5 @@ pom.xml
 .lein-repl-history
 .lein-plugins
 *~
+events.txt
+
