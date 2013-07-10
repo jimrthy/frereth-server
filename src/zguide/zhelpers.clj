@@ -114,8 +114,8 @@ There's no way it's appropriate here.
 I just need to get something written for my
 \"get the rope thrown across the bridge\" approach.
 It totally falls apart when I'm just trying to send a string."
-  (doseq [m message]
-    (sendmore socket message))
+  (doseq [m messages]
+    (send-more socket m))
   (send socket ""))
 
 (defn identify
