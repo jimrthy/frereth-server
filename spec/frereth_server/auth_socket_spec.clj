@@ -76,22 +76,22 @@
                 
                 (mq/send client '(ib test))
                 (comment (let [resp (mq/recv-obj client)]
-                           (should (= resp 'prove-it))))
+                           (should (= resp 'oryl?))))
 
-                (mq/send client "Really secure signature")
+                (mq/send client '(yarly "Really secure signature"))
 
                 ;; This is a different layer
                 (comment (let [resp (mq/recv-obj client)]
-                           (should (= resp 'wachu-wants?))))
+                           (should (= resp 'wachu-wantz?))))
 
-                (mq/send client 'me-wantz-play)
+                (mq/send client '(icanhaz? play))
 
                 ;; Do I really want to read here?
                 ;; Or just run obliviously to verify that no exceptions
                 ;; get thrown?
                 ;; The latter option seems like a completely useless test.
                 (let [response (mq/recv-all client)
-                        (should (= response "What?"))]))
+                        (should (= response "RDYPLYR1"))]))
 
             (it "Basic Login Sequence"
                 ;; This is trickier than I realized.
@@ -111,15 +111,16 @@
                 ;;
                 ;; c.f. http://rfc.zeromq.org/spec:27
                 ;; (the 0mq Authentication Protocol)
-                (let [login-sequence ["hai"
+                (let [login-sequence ["ohai"
                                       ;; Q: Can I make a client dumber than this?
                                       ;; A: I really shouldn't challenge
                                       ;; myself that way.
-                                      ["me-speekz" 
+                                      ["icanhaz?" "me-speekz" 
                                        [:youre-kidding nil "login-id" nil]] 
-                                      ["ib" "test"]
-                                      "Really secure signature"
-                                      "me-wantz-play"]
+                                      ["yarly" "ib" "test"]
+
+                                      ["yarly" "Really secure signature"]
+                                      ["icanhaz?" "me-wantz-play"]]
                       client @client-atom]
                   ;; client is now an mq/req socket, that should be
                   ;; connected to the server we're testing
