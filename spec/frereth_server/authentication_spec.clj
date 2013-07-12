@@ -4,28 +4,35 @@
   (:use [speclj.core :as spec])
   (:gen-class))
 
-(let [world (atom nil)
-      client-atom (atom nil)]
+(let [world (atom nil)]
 
   (describe "Check authentication"
             (before-all
              (println "Preparing")
+             ;; FIXME: sys/init binds the actual auth socket, which does
+             ;; not make any sense here.
+             ;; refs to world and client-atom should be able to happily go away.
+             ;;
+             ;; Well, for a first pass.
+             ;; Anything resembling a second version will need some sort of
+             ;; stateful server on the other end that tracks login requests
+             ;; and hands out auth keys.
+             ;; It seems like overkill here and now, but I know that I need it, eventually.
+             ;;
+             ;; The (well, one) obnoxious piece is that I don't have any reason at
+             ;; all to initialize a socket interface for this.
+             ;;
+             ;; The very idea is stupid and needs a re-think.
              (reset! world (sys/init)))
 
             (after-all
              (println "Ending")
-             (if-let [client @client-atom]
-               (do (.close client)
-                   (reset! client-atom nil))
-               (println "NULL client. Huh?"))
-
+             ;; Is there anything at all I can do here that's worthwhile?
              (reset! world nil))
 
             (before
              (println "\tTesting...")
-             (swap! world sys/start)
-             (reset! client-atom (throw (RuntimeException.
-                                         "This probably doesn't make any sense at all"))))
+             (swap! world sys/start))
 
             (after
              (println "\t...Tested")

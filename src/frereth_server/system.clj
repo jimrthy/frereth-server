@@ -1,6 +1,6 @@
 (ns frereth-server.system
   (:gen-class)
-  (:require [frereth-server.authentication :as auth]
+  (:require [frereth-server.auth-socket :as auth]
             [frereth-server.config :as config]
             [zguide.zhelpers :as mq])
   (:gen-class))
@@ -68,7 +68,7 @@ and start it running. Returns an updated instance of the system."
         ;; dealer/router pair. c.f. rrbroker.
         ;;client-sockets (mq/socket context mq/dealer)
         auth-thread (auth/runner context done)
-
+        
         client-socket (mq/socket context mq/pub)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))

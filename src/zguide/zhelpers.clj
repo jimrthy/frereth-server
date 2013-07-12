@@ -156,7 +156,7 @@ It's also quite convenient:
 read a string from a socket and convert it to a clojure object.
 That's how this is really meant to be used, if you can trust your peers.
 Could it possibly be used safely through EDN?"
-  ([#ZMQ$Socket socket]
+  ([#^ZMQ$Socket socket]
      (-> socket recv-str read))
   ([#^ZMQ$Socket socket flags]
      ;; This is pathetic, but I'm on the verge of collapsing
