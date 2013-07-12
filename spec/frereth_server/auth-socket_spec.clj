@@ -1,4 +1,4 @@
-(ns frereth-server.authentication-spec
+(ns frereth-server.auth-socket-spec
   (:require [frereth-server.authentication :as auth]
             [frereth-server.config :as config]
             [frereth-server.system :as sys]
