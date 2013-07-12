@@ -1,4 +1,4 @@
-(ns frereth-server.authentication
+(ns frereth-server.auth-socket
   (:require [frereth-server.config :as config]
             [zguide.zhelpers :as mq])
   (:gen-class))
