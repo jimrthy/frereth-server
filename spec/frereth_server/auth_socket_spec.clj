@@ -65,33 +65,34 @@
                 ;; Skip reading the response...this is really a regression
                 ;; test case. Should test the normal flow control first.
 
-                ;; Basic authorization exchange
-                (mq/send client 'hai)
-                (comment (let [resp (mq/recv-obj client)]
-                           (should (= resp 'ohai))))
+                (let [client @client-atom]
+                  ;; Basic authorization exchange
+                  (mq/send client 'hai)
+                  (comment (let [resp (mq/recv-obj client)]
+                             (should (= resp 'ohai))))
 
-                (mq/send client ['me-speekz nil])
-                (comment (let [resp (mq/recv-obj client)]
-                           (should (= 'lolz resp))))
-                
-                (mq/send client '(ib test))
-                (comment (let [resp (mq/recv-obj client)]
-                           (should (= resp 'oryl?))))
+                  (mq/send client ['me-speekz nil])
+                  (comment (let [resp (mq/recv-obj client)]
+                             (should (= 'lolz resp))))
+                  
+                  (mq/send client '(ib test))
+                  (comment (let [resp (mq/recv-obj client)]
+                             (should (= resp 'oryl?))))
 
-                (mq/send client '(yarly "Really secure signature"))
+                  (mq/send client '(yarly "Really secure signature"))
 
-                ;; This is a different layer
-                (comment (let [resp (mq/recv-obj client)]
-                           (should (= resp 'wachu-wantz?))))
+                  ;; This is a different layer
+                  (comment (let [resp (mq/recv-obj client)]
+                             (should (= resp 'wachu-wantz?))))
 
-                (mq/send client '(icanhaz? play))
+                  (mq/send client '(icanhaz? play))
 
-                ;; Do I really want to read here?
-                ;; Or just run obliviously to verify that no exceptions
-                ;; get thrown?
-                ;; The latter option seems like a completely useless test.
-                (let [response (mq/recv-all client)
-                        (should (= response "RDYPLYR1"))]))
+                  ;; Do I really want to read here?
+                  ;; Or just run obliviously to verify that no exceptions
+                  ;; get thrown?
+                  ;; The latter option seems like a completely useless test.
+                  (let [response (mq/recv-all client)
+                        (should (= response "RDYPLYR1"))])))
 
             (it "Basic Login Sequence"
                 ;; This is trickier than I realized.
