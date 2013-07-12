@@ -1,5 +1,5 @@
 (ns frereth-server.auth-socket-spec
-  (:require [frereth-server.authentication :as auth]
+  (:require [frereth-server.auth-socket :as auth]
             [frereth-server.config :as config]
             [frereth-server.system :as sys]
             [zguide.zhelpers :as mq])
@@ -9,7 +9,7 @@
 (let [world (atom nil)
       client-atom (atom nil)]
 
-  (describe "Check authentication"
+  (describe "Check auth messaging"
             (before-all
              (println "Preparing")
              (reset! world (sys/init)))
@@ -36,6 +36,9 @@
 
             (after
              (println "\t...Tested")
+             (.close @client-atom)
+             (reset! client-atom nil)
+
              (swap! world sys/stop))
 
             (it "Kill"
@@ -54,7 +57,7 @@
                 ;; Q: Why am I even thinking about subjecting myself to this?
                 ;; A: Because this is what unit tests are for.
                 ;; Just write the obnoxious thing so it's documented.
-                (mq/send client "ohhai")
+
                 ;; Brain-dead client. Don't care about the response
                 ;; at all.
                 ;; Server needs to be robust enough to handle clients
@@ -64,24 +67,31 @@
 
                 ;; Basic authorization exchange
                 (mq/send client 'hai)
-                (let [resp (mq/recv-obj client)]
-                  (should (= resp 'ohai)))
+                (comment (let [resp (mq/recv-obj client)]
+                           (should (= resp 'ohai))))
 
                 (mq/send client ['me-speekz nil])
-                (let [resp (mq/recv-obj client)]
-                  (should (= 'lolz resp)))
+                (comment (let [resp (mq/recv-obj client)]
+                           (should (= 'lolz resp))))
                 
                 (mq/send client '(ib test))
-                (let [resp (mq/recv-obj client)]
-                  (should (= resp 'prove-it)))
+                (comment (let [resp (mq/recv-obj client)]
+                           (should (= resp 'prove-it))))
 
                 (mq/send client "Really secure signature")
 
                 ;; This is a different layer
-                (let [resp (mq/recv-obj client)]
-                  (should (= resp 'wachu-wants?)))
+                (comment (let [resp (mq/recv-obj client)]
+                           (should (= resp 'wachu-wants?))))
 
-                (mq/send client 'me-wantz-play))
+                (mq/send client 'me-wantz-play)
+
+                ;; Do I really want to read here?
+                ;; Or just run obliviously to verify that no exceptions
+                ;; get thrown?
+                ;; The latter option seems like a completely useless test.
+                (let [response (mq/recv-all client)
+                        (should (= response "What?"))]))
 
             (it "Basic Login Sequence"
                 ;; This is trickier than I realized.

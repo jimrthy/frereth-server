@@ -129,13 +129,17 @@ It totally falls apart when I'm just trying to send a string."
      (recv socket 0)))
 
 (defn recv-all
-  [#^ZMQ$Socket socket flags]
-  (loop [acc []]
-    (let [msg (recv socket flags)
-          result (conj acc msg)]
-      (if (.hasReceiveMore socket)
-        (recur result)
-        result))))
+  "Does it make sense to accept flags here?"
+  ([#^ZMQ$Socket socket flags]
+      (loop [acc []]
+        (let [msg (recv socket flags)
+              result (conj acc msg)]
+          (if (.hasReceiveMore socket)
+            (recur result)
+            result))))
+  ([#^ZMQ$Socket socket]
+     ;; FIXME: Is this actually the flag I want?
+     (recv-all socket send-more)))
 
 (defn recv-str
   ([#^ZMQ$Socket socket]
