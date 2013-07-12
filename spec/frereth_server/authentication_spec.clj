@@ -61,13 +61,27 @@
                 ;; this evil. And worse.
                 ;; Skip reading the response...this is really a regression
                 ;; test case. Should test the normal flow control first.
+
+                ;; Basic authorization exchange
+                (mq/send client 'hai)
+                (let [resp (mq/recv-obj client)]
+                  (should (= resp 'ohai)))
+
+                (mq/send client ['me-speekz nil])
+                (let [resp (mq/recv-obj client)]
+                  (should (= 'lolz resp)))
                 
-                (mq/send client ["ib" "test"])
-                ;; r-s == response-string
+                (mq/send client '(ib test))
                 (let [resp (mq/recv-obj client)]
                   (should (= resp 'prove-it)))
 
-                (mq/send client))
+                (mq/send client "Really secure signature")
+
+                ;; This is a different layer
+                (let [resp (mq/recv-obj client)]
+                  (should (= resp 'wachu-wants?)))
+
+                (mq/send client 'me-wantz-play))
 
             (it "Basic Login Sequence"
                 ;; This is trickier than I realized.
@@ -87,27 +101,20 @@
                 ;;
                 ;; c.f. http://rfc.zeromq.org/spec:27
                 ;; (the 0mq Authentication Protocol)
-                (let [login-sequence [["ib" "test"]
-                                      ["me-wantz-play" 
-                                       ;; Can I make a client dumber than this?
-                                       [:youre-kidding nil "login-id" nil]
-                                       ;; These represent multiple frames
-                                       ;; that would be received over the wire.
-                                       ;; And, of course, any decent server
-                                       ;; should reject crap like this.
-                                       ["Really secure signature"]]]
+                (let [login-sequence ["hai"
+                                      ;; Q: Can I make a client dumber than this?
+                                      ;; A: I really shouldn't challenge
+                                      ;; myself that way.
+                                      ["me-speekz" 
+                                       [:youre-kidding nil "login-id" nil]] 
+                                      ["ib" "test"]
+                                      "Really secure signature"
+                                      "me-wantz-play"]
                       client @client-atom]
                   ;; client is now an mq/req socket, that should be
                   ;; connected to the server we're testing
-                  
-                  ;; We're interested in the side-effects
-                  ;; This actually looks like the painful version
-                  ;; Aside from the fact that it's horribly broken
-                  (doseq [message-pair login-sequence]
-                    (mq/send client (first message-pair) 0)
-                    (let [response-string (mq/recv-str client)
-                          ;; FIXME: *Never* trust external data!
-                          response (read response-string)]
-                      (should (= response (rest message-pair)))))))))
+                  (mq/send client login-sequence 0)
+                  (let [response (mq/recv client)
+                        (should (= response "What?"))])))))
 
 (run-specs)
