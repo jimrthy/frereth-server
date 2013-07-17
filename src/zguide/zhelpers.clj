@@ -155,6 +155,14 @@ It totally falls apart when I'm just trying to send a string."
      (when-let [s (recv socket flags)]
        (-> s String. .trim))))
 
+(defn recv-all-str
+  "How much, overhead gets added by just converted the received primitive Byte[] to strings?"
+  ([#^ZMQ$Socket socket]
+     (recv-all-str socket 0))
+  ([#^ZMQ$Socket socket flags]
+     (let [packets (recv-all socket flags)]
+       (map #(String. %) packets))))
+
 (defn recv-obj
   "This function is horribly dangerous and really should not be used.
 It's also quite convenient:

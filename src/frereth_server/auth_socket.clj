@@ -6,8 +6,13 @@
             )
   (:gen-class))
 
+(defn- log [msg]
+  "FIXME: Debug only.
+Really?"
+  (spit "/tmp/log.txt" (str msg)))
+
 (defn- read-message [s]
-  (mq/recv-all s))
+  (mq/recv-all-str s))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -48,7 +53,7 @@ thought."
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
   ;; Which seems pretty reasonable.
-  (spit "/tmp/log.txt" msgs)
+  (log msgs)
 
   ;; What are the odds that I can call a method this way?
   (comment (dorun dispatch msgs))
@@ -58,8 +63,8 @@ thought."
   ;;(throw (RuntimeException. "Why didn't that show up?"))
   (dorun #(dispatch %) msgs)
   ;; Or possibly my real problem is laziness?
-  (for [m msgs]
-    (throw (RuntimeException. (str m)))))
+  (comment (for [m msgs]
+             (throw (RuntimeException. (str m))))))
 
 (defmethod dispatch :default
   [echo]
@@ -80,14 +85,18 @@ Oops. Backwards parameters."
       ;; I hate to break this up like this, but it just is not
       ;; a performance-critical section.
       ;; Probably.
-      (spit "/tmp/log.txt" (format "Sending: %s" msgs))
-      (spit "/tmp/log.txt" (format "\nto\n%s" s))
+      (log (format "Sending: %s" msgs))
+      (log (format "\nto\n%s" s))
       (mq/send-all s msgs))))
 
 
 (defn- authenticator
   "Deal with authentication requests.
-done-reference lets someone else trigger a 'stop' signal."
+done-reference lets someone else trigger a 'stop' signal.
+What seems particularly obnoxious about this: I don't really care
+about this just now, and it probably isn't relevant in the long run.
+I just want the basic testing to work. So count it as a homework
+assignment and don't surrender to laziness."
   [ctx done-reference]
   ;; This looks like an ugly weakness in my scheme:
   ;; The client needs to connect to a dealer socket
@@ -135,9 +144,16 @@ done-reference lets someone else trigger a 'stop' signal."
           ;; Possibly present a potential client with details about
           ;; what to do/where to go next.
           (if (.pollin poller 0)
-            (let [request (read-message listener)
-                  response (dispatch request)]
-              (send-message listener response))
+            (let [request (read-message listener)]
+              ;; I can see request being a lazy sequence.
+              ;; But (doall ...) is documented to realize the entire sequence.
+              ;; Here's a hint: it still returns a LazySeq, apparently
+              (log (str "REQUEST: " (doall request)))
+              (doseq [msg request]
+                (log msg))
+              (throw (RuntimeException. "WTF?"))
+              (let [response (dispatch request)]
+                (send-message listener response)))
             (throw (RuntimeException. "How'd we get here?"))))
         (finally
           (.close listener))))))
@@ -149,5 +165,7 @@ ctx is the zmq context for the authenticator to listen on.
 done-reference is some sort of deref-able instance that will tell the thread to quit.
 This feels like an odd approach, but nothing more obvious springs to mind."
   [ctx done-reference]
+  (println "Kicking off the authentication runner thread in context: "
+           ctx "\nwaiting on Done Reference " done-reference)
   (.start (Thread. (fn []
                      (authenticator ctx done-reference)))))
