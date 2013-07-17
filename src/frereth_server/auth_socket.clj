@@ -28,6 +28,8 @@ thought."
     (when (seq msg)
       ;; Just got a batch of messages. What do they mean?
       ;; For starters, go with super-easy
+      ;; I bet this is at least part of my problem: I *really* have a
+      ;; java-style byte[]. I bet that qualifies as a seq.
       :list)))
 
 (defmulti ^:private dispatch
@@ -54,7 +56,8 @@ thought."
   (print "Dispatching a sequence of messages: " msgs)
   ;; Apparently, expectations redirects STDOUT
   ;;(throw (RuntimeException. "Why didn't that show up?"))
-  (comment (dorun #(dispatch %) msgs))
+  (dorun #(dispatch %) msgs)
+  ;; Or possibly my real problem is laziness?
   (for [m msgs]
     (throw (RuntimeException. (str m)))))
 
@@ -77,7 +80,8 @@ Oops. Backwards parameters."
       ;; I hate to break this up like this, but it just is not
       ;; a performance-critical section.
       ;; Probably.
-      (spit "/tmp/log.txt" (format "Sending: %s\nto\n%s" msgs s))
+      (spit "/tmp/log.txt" (format "Sending: %s" msgs))
+      (spit "/tmp/log.txt" (format "\nto\n%s" s))
       (mq/send-all s msgs))))
 
 
