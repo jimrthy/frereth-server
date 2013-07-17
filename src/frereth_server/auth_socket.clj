@@ -1,6 +1,9 @@
 (ns frereth-server.auth-socket
   (:require [frereth-server.config :as config]
-            [zguide.zhelpers :as mq])
+            [zguide.zhelpers :as mq]
+            ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
+            [clojure.java.io :as io]
+            )
   (:gen-class))
 
 (defn- read-message [s]
@@ -24,7 +27,8 @@ thought."
     msg
     (when (seq msg)
       ;; Just got a batch of messages. What do they mean?
-      (throw (RuntimeException. "Now things start to get interesting")))))
+      ;; For starters, go with super-easy
+      :list)))
 
 (defmulti ^:private dispatch
   "Based on message, generate response"
@@ -38,6 +42,21 @@ thought."
 (defmethod dispatch "ping"
   [_]
   "pong")
+
+(defmethod dispatch :list [msgs]
+  ;; Based on the next line, I have something like a Vector of byte arrays.
+  ;; Which seems pretty reasonable.
+  (spit "/tmp/log.txt" msgs)
+
+  ;; What are the odds that I can call a method this way?
+  (comment (dorun dispatch msgs))
+  ;; That's failing. Then again, so is this:
+  (print "Dispatching a sequence of messages: " msgs)
+  ;; Apparently, expectations redirects STDOUT
+  ;;(throw (RuntimeException. "Why didn't that show up?"))
+  (comment (dorun #(dispatch %) msgs))
+  (for [m msgs]
+    (throw (RuntimeException. (str m)))))
 
 (defmethod dispatch :default
   [echo]
@@ -58,6 +77,7 @@ Oops. Backwards parameters."
       ;; I hate to break this up like this, but it just is not
       ;; a performance-critical section.
       ;; Probably.
+      (spit "/tmp/log.txt" (format "Sending: %s\nto\n%s" msgs s))
       (mq/send-all s msgs))))
 
 
@@ -113,7 +133,7 @@ done-reference lets someone else trigger a 'stop' signal."
           (if (.pollin poller 0)
             (let [request (read-message listener)
                   response (dispatch request)]
-              (send-message response listener))
+              (send-message listener response))
             (throw (RuntimeException. "How'd we get here?"))))
         (finally
           (.close listener))))))
