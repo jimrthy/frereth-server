@@ -7,11 +7,10 @@
   (:gen-class))
 
 (defn- log [msg]
-  "FIXME: Debug only.
-Q: Really?
-A: Well, if nothing else, this is mostly useless. Desperately need something 
-that resembles real logging."
-  (spit "/tmp/log.txt" (str msg)))
+  "FIXME: Debug only."
+  (with-open [w (io/writer "/tmp/log.txt" :append true)]
+    (.write w (str msg))
+    (.write w "\n")))
 
 (defn- read-message [s]
   (mq/recv-all-str s))
@@ -46,6 +45,7 @@ thought."
 (defmethod dispatch "dieDieDIE!!"
   [_]
   ;; Really just a placeholder message indicting that it's OK to quit
+  ;; Note that we are *not* getting here
   (log "Quit permission")
   "K")
 
@@ -57,8 +57,9 @@ thought."
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
   ;; Which seems pretty reasonable.
+  (log "Dispatching :list:\n")
   (log msgs)
-  (log "\n(that's some sort of SEQ of messages)")
+  (log "\n(that's some sort of SEQ of messages)\n")
 
   ;; Q: What are the odds that I can call a method this way?
   (comment (dorun dispatch msgs))
@@ -73,13 +74,19 @@ thought."
   ;; Or possibly my real problem is laziness?
   (comment (for [m msgs]
              (throw (RuntimeException. (str m)))))
+
+  (comment (log "Anything interesting?\n"))
+
+  (log msgs)
   (if-let [car (first msgs)]
     (do
       (log car)
       (dispatch (rest msgs)))
     (do
       (log (str "Empty CAR. CDR: " (rest msgs)))))
-  (throw (RuntimeException. (str (first msgs)))))
+
+  (comment (log "Seriously?"))
+  (comment (throw (RuntimeException. (str (first msgs))))))
 
 (defmethod dispatch :default
   [echo]
@@ -180,7 +187,7 @@ ctx is the zmq context for the authenticator to listen on.
 done-reference is some sort of deref-able instance that will tell the thread to quit.
 This feels like an odd approach, but nothing more obvious springs to mind."
   [ctx done-reference]
-  (println "Kicking off the authentication runner thread in context: "
-           ctx "\nwaiting on Done Reference " done-reference)
+  (log (str "Kicking off the authentication runner thread in context: "
+            ctx "\nwaiting on Done Reference " done-reference))
   (.start (Thread. (fn []
                      (authenticator ctx done-reference)))))
