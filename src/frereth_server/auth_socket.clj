@@ -8,7 +8,9 @@
 
 (defn- log [msg]
   "FIXME: Debug only.
-Really?"
+Q: Really?
+A: Well, if nothing else, this is mostly useless. Desperately need something 
+that resembles real logging."
   (spit "/tmp/log.txt" (str msg)))
 
 (defn- read-message [s]
@@ -44,27 +46,40 @@ thought."
 (defmethod dispatch "dieDieDIE!!"
   [_]
   ;; Really just a placeholder message indicting that it's OK to quit
+  (log "Quit permission")
   "K")
 
 (defmethod dispatch "ping"
   [_]
+  (log "Heartbeat")
   "pong")
 
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
   ;; Which seems pretty reasonable.
   (log msgs)
+  (log "\n(that's some sort of SEQ of messages)")
 
-  ;; What are the odds that I can call a method this way?
+  ;; Q: What are the odds that I can call a method this way?
   (comment (dorun dispatch msgs))
   ;; That's failing. Then again, so is this:
   (print "Dispatching a sequence of messages: " msgs)
+  ;; Well, at least, I'm not seeing any output there.
   ;; Apparently, expectations redirects STDOUT
   ;;(throw (RuntimeException. "Why didn't that show up?"))
-  (dorun #(dispatch %) msgs)
+  
+  ;; This fails in the same way: cannot convert a MultiFn to a java.lang.Number:
+  (comment (dorun #(dispatch %) msgs))
   ;; Or possibly my real problem is laziness?
   (comment (for [m msgs]
-             (throw (RuntimeException. (str m))))))
+             (throw (RuntimeException. (str m)))))
+  (if-let [car (first msgs)]
+    (do
+      (log car)
+      (dispatch (rest msgs)))
+    (do
+      (log (str "Empty CAR. CDR: " (rest msgs)))))
+  (throw (RuntimeException. (str (first msgs)))))
 
 (defmethod dispatch :default
   [echo]
@@ -151,7 +166,7 @@ assignment and don't surrender to laziness."
               (log (str "REQUEST: " (doall request)))
               (doseq [msg request]
                 (log msg))
-              (throw (RuntimeException. "WTF?"))
+              (comment (throw (RuntimeException. "WTF?")))
               (let [response (dispatch request)]
                 (send-message listener response)))
             (throw (RuntimeException. "How'd we get here?"))))
