@@ -41,6 +41,7 @@
 
              (swap! world sys/stop))
 
+            ;;; Note that this really should kill off the auth/auth sockets
             (it "Kill"
                 (should= "K" (#'auth/dispatch "dieDieDIE!!")))
 

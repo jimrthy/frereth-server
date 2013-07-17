@@ -83,10 +83,7 @@ thought."
       (log car)
       (dispatch (rest msgs)))
     (do
-      (log (str "Empty CAR. CDR: " (rest msgs)))))
-
-  (comment (log "Seriously?"))
-  (comment (throw (RuntimeException. (str (first msgs))))))
+      (log (str "Empty CAR. CDR: " (rest msgs))))))
 
 (defmethod dispatch :default
   [echo]
