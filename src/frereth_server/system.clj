@@ -147,11 +147,13 @@ resources. Returns an updated instance of the system, ready to re-start."
 
     (when-let [ctx @(:network-context universe)]
       (try
-        (let [auth-killer (mq/socket ctx mq/req)]
-          (mq/connect auth-killer (format "tcp://127.0.0.1:%d" config/auth-port))
-          (mq/send auth-killer "dieDieDIE!!")
-          ;; Wait for a response.
-          (mq/recv-str auth-killer))
+        (let [auth-killer (mq/socket ctx (mq/const :req))]
+          (when-let [ports (:ports universe)]
+            ;; Now we can start killing off the interesting shit
+            (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
+            (mq/send auth-killer "dieDieDIE!!")
+            ;; Wait for a response.
+            (mq/recv-str auth-killer)))
         (when-let [sock (:clients universe)]
           (.close sock))
         (when-let [sock (:master-connection universe)]
