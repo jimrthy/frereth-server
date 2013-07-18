@@ -121,7 +121,7 @@ What seems particularly obnoxious about this: I don't really care
 about this just now, and it probably isn't relevant in the long run.
 I just want the basic testing to work. So count it as a homework
 assignment and don't surrender to laziness."
-  [ctx done-reference system]
+  [ctx done-reference auth-port]
   ;; This looks like an ugly weakness in my scheme:
   ;; The client needs to connect to a dealer socket
   ;; to auth. Then, realistically, it needs to switch to
@@ -133,8 +133,8 @@ assignment and don't surrender to laziness."
   ;; but it seems pretty blindingly obvious.
   ;; The alternative simplifies the client ("I only need 1 socket!")
   ;; but not by much. Certainly not enough to qualify as an upside.
-  (let [listener (mq/socket ctx mq/const (:dealer))]
-    (mq/bind listener (format "tcp://*:%d" (:auth-port system)))
+  (let [listener (mq/socket ctx (mq/const (:dealer)))
+        (mq/bind listener (format "tcp://*:%d" auth-port))]
 
     (let [poller (mq/socket-poller-in [listener])]
       (try
@@ -187,9 +187,11 @@ assignment and don't surrender to laziness."
   "Set up the authenticator.
 ctx is the zmq context for the authenticator to listen on.
 done-reference is some sort of deref-able instance that will tell the thread to quit.
-This feels like an odd approach, but nothing more obvious springs to mind."
-  [ctx done-reference]
+This feels like an odd approach, but nothing more obvious springs to mind.
+This gets called by system/start. It needs system as a parameter to do
+its thing. Circular references are bad, mmkay?"
+  [ctx done-reference auth-port]
   (log (str "Kicking off the authentication runner thread in context: "
             ctx "\nwaiting on Done Reference " done-reference))
   (.start (Thread. (fn []
-                     (authenticator ctx done-reference)))))
+                     (authenticator ctx done-reference auth-port)))))

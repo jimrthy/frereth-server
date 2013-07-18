@@ -76,11 +76,13 @@ and start it running. Returns an updated instance of the system."
         ;; Note that this is the connection that, say, sys-ops should use
         client-port (:client ports)
 
+        auth-port (:auth ports)
+
         ;; These probably need to be something different
         ;; The 'actual client' sockets should probably be a
         ;; dealer/router pair. c.f. rrbroker.
         ;;client-sockets (mq/socket context mq/dealer)
-        auth-thread (auth/runner context done)
+        auth-thread (auth/runner context done auth-port)
         
         client-socket (mq/socket context (mq/const :pub))]
     ;; Using JNI, I can use shared memory sockets, can't I?
