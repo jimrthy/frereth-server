@@ -27,7 +27,6 @@
             ;; More message parts are coming
             :sndmore ZMQ/SNDMORE
             :send-more ZMQ/SNDMORE
-            :send-more ZMQ/SNDMORE
 
             ;;; Socket types
 
