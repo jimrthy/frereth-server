@@ -1,7 +1,6 @@
 (ns frereth-server.system
   (:gen-class)
   (:require [frereth-server.auth-socket :as auth]
-            [frereth-server.config :as config]
             [zguide.zhelpers :as mq])
   (:gen-class))
 
@@ -16,9 +15,19 @@ I really need to figure out what I want to do here."
    ;; Actual controller socket.
    ;; If the context changes, then all the sockets that use it must also.
    :master-connection (atom nil)
+   ;; It seems pretty likely that this is important.
+   ;; At least for remote servers that might very well
+   ;; be load-balanced, or some such.
    :broker (atom nil)
    ;; Signal everything that we're finished.
-   :done (atom nil)})
+   :done (atom nil)
+
+   ;; These seem like lower-level configuration details that don't 
+   ;; particularly belong here...oh, well. If nothing else, they
+   ;; work as something like fairly reasonable defaults
+   :ports {:client 7843
+           :master 7842
+           :auth 7841}})
 
 (defn start
   "Performs side effects to initialize the system, acquire resources,
@@ -47,21 +56,25 @@ and start it running. Returns an updated instance of the system."
         ;;context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
         context (mq/context 1)
 
+        ;; Which ports should I be listening to?
+        ports (:ports universe)
+
         ;; Where should the master server be listening?
         ;; This is the part that deals with really controlling the server.
         ;; For now, at least, think of it as a back door.
         ;; I'm torn about whether it's a good idea or not...
         ;; honestly, its existence should be configurable
         ;; (and default to off!)
-        master-port config/master-port
-
+        ;;master-port config/master-port
+        master-port (:master ports)
+        
         ;; Connection to localhost for Ultimate Power...
         ;; this should, honestly, be something like NREPL
-        master-socket (mq/socket context mq/rep)
+        master-socket (mq/socket context (mq/const :rep))
 
         ;; Where does the actual action happen?
         ;; Note that this is the connection that, say, sys-ops should use
-        client-port config/*port*
+        client-port (:client ports)
 
         ;; These probably need to be something different
         ;; The 'actual client' sockets should probably be a
@@ -69,7 +82,7 @@ and start it running. Returns an updated instance of the system."
         ;;client-sockets (mq/socket context mq/dealer)
         auth-thread (auth/runner context done)
         
-        client-socket (mq/socket context mq/pub)]
+        client-socket (mq/socket context (mq/const :pub))]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
@@ -116,7 +129,11 @@ and start it running. Returns an updated instance of the system."
      ;; I'm not sure why I feel that temptation.
      :master-connection (atom master-socket)
      :clients (atom client-socket)
-     :authentication-thread (atom auth-thread)}))
+     :authentication-thread (atom auth-thread)
+     ;; This last is really just for the sake of continuity
+     ;; and sanity so I can sling this thing around with
+     ;; impunity and poetrinty
+     :ports ports}))
 
 (defn stop
   "Performs side-effects to shut down the system and release its

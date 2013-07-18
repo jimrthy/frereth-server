@@ -20,11 +20,13 @@
   [& args]
   ;; The basic gist:
   (let [thread-count (get-cpu-count)]
+    (println "Listening on " thread-count " thread connections")
     (mq/with-context [context thread-count]
       (do
         ;; Note that config/*port* controls where to listen
+        (throw (RuntimeException. "Ooops, I did it again. I broke your checkin"))
         (with-open [socket (-> context
-                               (mq/socket mq/pull)
+                               (mq/socket (mq/const :pull))
                                (mq/bind (str "tcp://127.0.0.1:" config/*port*)))]
           ;; Let's start with ECHO
           (let [pull (future (mq/recv socket))]

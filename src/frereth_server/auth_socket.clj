@@ -1,13 +1,18 @@
 (ns frereth-server.auth-socket
-  (:require [frereth-server.config :as config]
-            [zguide.zhelpers :as mq]
+  (:require [zguide.zhelpers :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
             )
   (:gen-class))
 
 (defn- log [msg]
-  "FIXME: Debug only."
+  "FIXME: Debug only.
+If nothing else, it does not belong here. And should not be writing to
+anything in /tmp.
+For that matter...whatever. I need to get around to implementing 'real'
+logging.
+This is a decent placeholder until I have enough written to justify
+thinking about crap like this in issues."
   (with-open [w (io/writer "/tmp/log.txt" :append true)]
     (.write w (str msg))
     (.write w "\n")))
@@ -116,7 +121,7 @@ What seems particularly obnoxious about this: I don't really care
 about this just now, and it probably isn't relevant in the long run.
 I just want the basic testing to work. So count it as a homework
 assignment and don't surrender to laziness."
-  [ctx done-reference]
+  [ctx done-reference system]
   ;; This looks like an ugly weakness in my scheme:
   ;; The client needs to connect to a dealer socket
   ;; to auth. Then, realistically, it needs to switch to
@@ -128,8 +133,8 @@ assignment and don't surrender to laziness."
   ;; but it seems pretty blindingly obvious.
   ;; The alternative simplifies the client ("I only need 1 socket!")
   ;; but not by much. Certainly not enough to qualify as an upside.
-  (let [listener (mq/socket ctx mq/dealer)]
-    (mq/bind listener (format "tcp://*:%d" config/auth-port))
+  (let [listener (mq/socket ctx mq/const (:dealer))]
+    (mq/bind listener (format "tcp://*:%d" (:auth-port system)))
 
     (let [poller (mq/socket-poller-in [listener])]
       (try
