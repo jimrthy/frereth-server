@@ -23,7 +23,14 @@ FIXME: listing of options this app accepts.
 
 ### Bugs
 
-...
+At this point, the entire idea's pretty useless and stupid.
+
+Aside from the fact that it's still vaporware.
+
+### Thoughts
+
+This approach is pretty lame. Really should consider the way things like
+sysvinit and runlevels work.
 
 ### Any Other Sections
 ### That You Think
