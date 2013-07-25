@@ -2,7 +2,8 @@
   (:gen-class)
   (:require ;[qbits.jilch.mq :as mq]
    [zguide.zhelpers :as mq]
-   [frereth-server.config :as config]))
+   [frereth-server.config :as config]
+   [frereth-server.system :as sys]))
 
 (defn get-cpu-count 
   "How many CPUs are available?"
@@ -16,9 +17,18 @@
   (.availableProcessors (Runtime/getRuntime)))
 
 (defn -main
-  [system & args]
+  [& args]
   ;; The basic gist:
-  (let [thread-count (get-cpu-count)
+  (let [;; Basic system first
+        dead-system (sys/init)
+        system (sys/start dead-system)
+        
+        ;; More specific pieces...tempting to separate these into their own
+        ;; function just to emphasize that this is really the next step.
+        ;; Then again, I've been fantasizing lately about setting up
+        ;; something resembling the BSD init thing, complete with runlevels.
+        ;; Adding complications at this point leads to madness.
+        thread-count (get-cpu-count)
         master-port (:master (:ports system))]
     (println "Listening on " thread-count " thread connections")
     (mq/with-context [context thread-count]
