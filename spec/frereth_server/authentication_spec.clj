@@ -4,6 +4,8 @@
   (:use [speclj.core :as spec])
   (:gen-class))
 
+;; This whole thing needs to just go away.
+
 (let [world (atom nil)]
 
   (describe "Check authentication"
@@ -52,7 +54,7 @@
                 ;; sequence, rather than validating each individual message
                 ;; the way I want to now.
                 ;; These messages just flat-out do not make sense in isolation.
-                (let [helo (auth/dispatch 'ohai)]
+                (let [helo (#'auth/dispatch 'ohai)]
                   ;; Q: Why?
                   ;; Most servers don't *need* any sort of auth. In general.
                   ;; A: Yes, they do.
@@ -65,24 +67,24 @@
                   ;; the foundation.
                   (should (= helo 'oryl?)))
                 ;; Server should totally reject this.
-                (let [signature-request (auth/dispatch '(icanhaz? me-speekz
+                (let [signature-request (#'auth/dispatch '(icanhaz? me-speekz
                                                                   [:blah nil :whatever nil]))]
                   (should (= signature-request 'lolz)))
                 ;; I should get the previous tests working before I try something
                 ;; ambitious like this.
                 (let [signature-request 
-                      (auth/dispatch '(icanhaz? me-speekz
+                      (#'auth/dispatch '(icanhaz? me-speekz
                                                 [:frereth [0 0 1]]))]
                   (should (= signature-request 'oryl?)))
                 
                 (let [signature-request
-                      (auth/dispatch '(ib test))]
+                      (#'auth/dispatch '(ib test))]
                   (should (= signature-request 'oryl?)))
 
-                (let [signature-validated (auth/dispatch '(yarly "Really secure signature"))]
+                (let [signature-validated (#'auth/dispatch '(yarly "Really secure signature"))]
                   (should (= signature-validated 'wachu-wantz?)))
 
-                (let [home-page (auth/dispatch '(icanhaz? play))]
+                (let [home-page (#'auth/dispatch '(icanhaz? play))]
                   ;; This message needs to move further down the chain
                   ;; (after the player has the home page, etc), but it's
                   ;; a start.

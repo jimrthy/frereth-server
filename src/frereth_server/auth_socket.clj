@@ -133,8 +133,8 @@ assignment and don't surrender to laziness."
   ;; but it seems pretty blindingly obvious.
   ;; The alternative simplifies the client ("I only need 1 socket!")
   ;; but not by much. Certainly not enough to qualify as an upside.
-  (let [listener (mq/socket ctx (mq/const (:dealer)))
-        (mq/bind listener (format "tcp://*:%d" auth-port))]
+  (let [listener (mq/socket ctx (mq/const :dealer))]
+    (mq/bind listener (format "tcp://*:%d" auth-port))
 
     (let [poller (mq/socket-poller-in [listener])]
       (try

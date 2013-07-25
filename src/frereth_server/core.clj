@@ -16,19 +16,17 @@
   (.availableProcessors (Runtime/getRuntime)))
 
 (defn -main
-  "I don't do a whole lot ... yet."
-  [& args]
+  [system & args]
   ;; The basic gist:
-  (let [thread-count (get-cpu-count)]
+  (let [thread-count (get-cpu-count)
+        master-port (:master (:ports system))]
     (println "Listening on " thread-count " thread connections")
     (mq/with-context [context thread-count]
       (do
-        ;; Note that config/*port* controls where to listen
-        (throw (RuntimeException. "Ooops, I did it again. I broke your checkin"))
-        (with-open [socket (-> context
-                               (mq/socket (mq/const :pull))
-                               (mq/bind (str "tcp://127.0.0.1:" config/*port*)))]
+        (with-open [master-socket (-> context
+                                      (mq/socket (mq/const :dealer))
+                                      (mq/bind (str "tcp://127.0.0.1:" master-port)))]
           ;; Let's start with ECHO
-          (let [pull (future (mq/recv socket))]
+          (let [pull (future (mq/recv master-socket))]
             (let [msg @pull]
-              (mq/send socket msg))))))))
+              (mq/send master-socket msg))))))))
