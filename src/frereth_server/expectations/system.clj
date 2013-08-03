@@ -1,6 +1,6 @@
 (ns frereth-server.expectations.system
   (:use expectations)
-  (:require (frereth-server.system :as sys)))
+  (:require [frereth-server.system :as sys]))
 
 ;;;; What sort of tests (if any) make sense here?
 ;;;; Maybe just verify that setup/teardown doesn't throw any errors?
@@ -22,5 +22,8 @@
   (try
     (expect true? (active? world))
     (finally
+      ;; sys/stop is totally broken. That breaks everything else.
+      ;; In all fairness, it should. I just really didn't want to
+      ;; deal with that tonight.
       (swap! world sys/stop)
       (expect false? (active? world)))))
