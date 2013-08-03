@@ -83,7 +83,18 @@ and start it running. Returns an updated instance of the system."
         ;; dealer/router pair. c.f. rrbroker.
         ;;client-sockets (mq/socket context mq/dealer)
         auth-thread (auth/runner context done auth-port)
-        
+
+        ;; Umm...No. This should not be a publisher.
+        ;; Except that it makes sense.
+        ;; Stream out state updates over this.
+        ;; Deal with "real" client requests over RRR.
+        ;; Except that it totally does not make sense:
+        ;; different clients will receive different messages
+        ;; based on their state (e.g. location).
+        ;; Here's a major issue with the one-size-fits-all
+        ;; approach:
+        ;; It doesn't.
+        ;; Worry about it some other time.
         client-socket (mq/socket context (mq/const :pub))]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
@@ -132,35 +143,67 @@ and start it running. Returns an updated instance of the system."
      :master-connection (atom master-socket)
      :clients (atom client-socket)
      :authentication-thread (atom auth-thread)
-     ;; This last is really just for the sake of continuity
-     ;; and sanity so I can sling this thing around with
-     ;; impunity and poetrinty
+     ;; Strictly so I have a reference to what's happening where.
+     ;; Note that this is just an ordinary map.
      :ports ports}))
+
+(defn kill-authenticator [universe]
+  ;; FIXME: Add an atom to universe to indicate that we expect
+  ;; authenticator to be around in the first place. If it's the
+  ;; first time through, don't waste time on this.
+  (when-let [ports (:ports universe)]
+    (if-let [ctx @(:network-context universe)]
+      (do (loop [retries 5] ; Pick something arbitrary for now
+            (when (< 0 retries)
+              ;; This doesn't automatically kill the socket
+              (mq/with-socket [auth-killer ctx (mq/const :req)]
+                (println "There are ports to be rid of")
+                
+                ;; Now we can start killing off the interesting shit
+                (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
+                (mq/send auth-killer "dieDieDIE!!")
+                (println "Death sentence sent")
+
+                ;; Wait for a response.
+                ;; Problem: There won't ever be any, if that listener was
+                ;; either never set up or never configured.
+                ;; There doesn't seem to be any way to double-check that.
+                (comment (mq/recv-str auth-killer))
+                ;; This is another functional abstraction just begging
+                ;; for attention...I've already forgotten how to actually use it.
+                (let [poller (mq/socket-poller-in [auth-killer])]
+                  (when-not (.pollin poller 0)
+                    ;; This seems interesting...I'm getting an error here
+                    ;; that I cannot recur across try.
+                    (recur (dec retries))))))))
+      (do
+        (println "No networking context...WTF?"))))
+  (println "Authentication thread gone"))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
 resources. Returns an updated instance of the system, ready to re-start."
   [universe]
   (when universe
+    (println "Have a universe to kill")
     ;; Signal to other threads that pieces are finished
     (swap! (:done universe) (constantly true))
-    ;; Realistically, need to wait for them to finish up.
-    ;; FIXME: Send a KILL request to the authentication thread
 
+    ;; Realistically, need to wait for them to finish up.
     (when-let [ctx @(:network-context universe)]
+      (println "Have a context to shut down")
       (try
-        (let [auth-killer (mq/socket ctx (mq/const :req))]
-          (when-let [ports (:ports universe)]
-            ;; Now we can start killing off the interesting shit
-            (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
-            (mq/send auth-killer "dieDieDIE!!")
-            ;; Wait for a response.
-            (mq/recv-str auth-killer)))
-        (when-let [sock (:clients universe)]
-          (.close sock))
-        (when-let [sock (:master-connection universe)]
-          (.close sock))
+        (kill-authenticator universe)
         (finally
+          ;; FIXME: Shouldn't these be inside finally blocks?
+          ;; Or whatever the clojure equivalent is.
+          (when-let [sock (:clients universe)]
+            (.close sock))
+          (println "Client thread closed")
+          (when-let [sock (:master-connection universe)]
+            (.close sock))
+          (println "Master connection closed")
           (.term ctx)))))
+  (println "Universe destroyed.")
   ;; Just return a completely fresh instance.
   (init))
