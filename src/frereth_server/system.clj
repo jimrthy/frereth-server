@@ -182,38 +182,37 @@ It doesn't recurse deeply, so don't worry about that."
      (kill-authenticator universe 5))
 
   ([universe retries]
-      ;; FIXME: Add an atom to universe to indicate that we expect
-      ;; authenticator to be around in the first place. If it's the
-      ;; first time through, don't waste time on this.
-      (when-let [ports (:ports universe)]
-        (if-let [ctx @(:network-context universe)]
-          (do
-            (when (< 0 retries)
-              (mq/with-socket [auth-killer ctx (mq/const :req)]
-                (println "There are " retries " attempts left to be rid of ports")
-                
-                ;; Now we can start killing off the interesting shit
-                (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
-                ;; send is async, right? There isn't any point to specifying NOBLOCK here,
-                ;; is there?
-                (mq/send auth-killer "dieDieDIE!!")
-                (println "Death sentence sent")
+     ;; FIXME: Add an atom to universe to indicate that we expect
+     ;; authenticator to be around in the first place. If it's the
+     ;; first time through, don't waste time on this.
+     (when-let [ports (:ports universe)]
+       (if-let [ctx @(:network-context universe)]
+         (do
+           (when (< 0 retries)
+             (mq/with-socket [auth-killer ctx (mq/const :req)]
+               (println "There are " retries " attempts left to be rid of ports")
+               
+               ;; Now we can start killing off the interesting shit
+               (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
+               ;; send is async, right? There isn't any point to specifying NOBLOCK here,
+               ;; is there?
+               (mq/send auth-killer "dieDieDIE!!")
+               (println "Death sentence sent")
 
-                ;; If the other side's alive, it really should ACK pretty much immediately.
-                (let [poller (mq/socket-poller-in [auth-killer])]
-                  ;; The 0 indicates that we're checking the first [and only]
-                  ;; poller. Really need some sort of timeout option. I think.
-                  (when-not (.pollin poller 0)
-                    ;; This is lame...but I have to start somewhere.
-                    ;; If the sockets are all tied up doing something else, this much delay
-                    ;; really ought to be enough to unstick them.
-                    ;; Of course, magic numbers like this are evil!
-                    (Thread/sleep 75)
-                    (kill-authenticator universe (dec retries))))))
-            
-            (do
-              (println "No networking context...WTF?"))))
-        (println "Authentication thread gone"))))
+               ;; If the other side's alive, it really should ACK pretty much immediately.
+               (let [poller (mq/socket-poller-in [auth-killer])]
+                 ;; The 0 indicates that we're checking the first [and only]
+                 ;; poller. Really need some sort of timeout option. I think.
+                 (when-not (.pollin poller 0)
+                   ;; This is lame...but I have to start somewhere.
+                   ;; If the sockets are all tied up doing something else, this much delay
+                   ;; really ought to be enough to unstick them.
+                   ;; Of course, magic numbers like this are evil!
+                   (Thread/sleep 75)
+                   (kill-authenticator universe (dec retries)))))))
+          
+         (println "No networking context...WTF?")))
+     (println "Authentication thread gone")))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
@@ -239,6 +238,15 @@ resources. Returns an updated instance of the system, ready to re-start."
           (when-let [sock @(:master-connection universe)]
             (.close sock))
           (println "Master connection closed")
+          ;; ...and we're hanging here.
+          ;; This is built-in 0mq behavior. Especially
+          ;; at startup, when I'm sending several "kill"
+          ;; messages to a nonexistent listener.
+          ;; The context is trying to obey me and deliver
+          ;; those messages before exiting.
+          ;; This does not work.
+          ;; FIXME: How do I force it to accept failure?
+          (throw (RuntimeException. "Start here"))
           (.term ctx)))))
   (println "Universe destroyed.")
   ;; Just return a completely fresh instance.
