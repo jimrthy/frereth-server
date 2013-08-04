@@ -25,6 +25,7 @@ I really need to figure out what I want to do here."
    ;; These seem like lower-level configuration details that don't 
    ;; particularly belong here...oh, well. If nothing else, they
    ;; work as something like fairly reasonable defaults
+   ;; FIXME: Seriously, though. These don't belong here.
    :ports {:client 7843
            :master 7842
            :auth 7841}})
@@ -52,6 +53,7 @@ and start it running. Returns an updated instance of the system."
         ;; be 1 for now.
         ;; FIXME: Load this from configuration.
         ;; For that matter, really should be able to tweak it at runtime.
+        ;; That strongly goes against 0mq's grain, but it's doable.
 
         ;;context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
         context (mq/context 1)
@@ -74,8 +76,23 @@ and start it running. Returns an updated instance of the system."
 
         ;; Where does the actual action happen?
         ;; Note that this is the connection that, say, sys-ops should use
+        ;; I think that comment has rotted more than a bit.
+        ;; I'm obviously still making this up as I go, but
+        ;; I *do* intend for this to be the actual client
+        ;; communication ports.
+        ;; But, honestly, now we're getting into territory
+        ;; that has to be decided on a case-by-case basis.
+        ;; I'm not trying to solve the problem in general
+        ;; yet. Just my specific problem.
         client-port (:client ports)
 
+        ;; Clients connect here to do things like logging in and
+        ;; find out where to access the most appropriate resources
+        ;; (whatever that means...different resource sets for
+        ;; different capabilities. Different URLs as new versions
+        ;; are released. Etc.
+        ;; Then again, for the simplest scenarios, just get the
+        ;; resources here directly, more or less the way HTTP works.
         auth-port (:auth ports)
 
         ;; These probably need to be something different
@@ -102,7 +119,13 @@ and start it running. Returns an updated instance of the system."
     ;; Note that, on unix, we have to set up the named pipe.
     ;; FIXME: Should probably plan on using that, if it's available.
     ;; For now, it qualifies as premature optimization.
-    (mq/bind master-socket (format "tcp://127.0.0.1:%d" master-port))
+    (let [master-address (format "tcp://127.0.0.1:%d" master-port)]
+      (try
+        (mq/bind master-socket master-address)
+        (catch Exception e
+          ;; FIXME: Switch to something that resembles real logging.
+          (do (println "Failed to bind " master-socket " to " master-address)
+              (throw)))))
 
     ;; Want to be pickier about who can connect. Or, at least,
     ;; have the option to do so.
@@ -147,38 +170,50 @@ and start it running. Returns an updated instance of the system."
      ;; Note that this is just an ordinary map.
      :ports ports}))
 
-(defn kill-authenticator [universe]
-  ;; FIXME: Add an atom to universe to indicate that we expect
-  ;; authenticator to be around in the first place. If it's the
-  ;; first time through, don't waste time on this.
-  (when-let [ports (:ports universe)]
-    (if-let [ctx @(:network-context universe)]
-      (do (loop [retries 5] ; Pick something arbitrary for now
+(defn kill-authenticator
+  "Tell the authenticator socket to kill itself.
+I originally tried to TCO with loop/recur, but that just does not
+play nicely with killing off the client socket and retrying on
+failure.
+It doesn't recurse deeply, so don't worry about that."
+  ([universe]
+     ;; Just go with what seems like a reasonable default
+     ;; for the retry count
+     (kill-authenticator universe 5))
+
+  ([universe retries]
+      ;; FIXME: Add an atom to universe to indicate that we expect
+      ;; authenticator to be around in the first place. If it's the
+      ;; first time through, don't waste time on this.
+      (when-let [ports (:ports universe)]
+        (if-let [ctx @(:network-context universe)]
+          (do
             (when (< 0 retries)
-              ;; This doesn't automatically kill the socket
               (mq/with-socket [auth-killer ctx (mq/const :req)]
-                (println "There are ports to be rid of")
+                (println "There are " retries " attempts left to be rid of ports")
                 
                 ;; Now we can start killing off the interesting shit
                 (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
+                ;; send is async, right? There isn't any point to specifying NOBLOCK here,
+                ;; is there?
                 (mq/send auth-killer "dieDieDIE!!")
                 (println "Death sentence sent")
 
-                ;; Wait for a response.
-                ;; Problem: There won't ever be any, if that listener was
-                ;; either never set up or never configured.
-                ;; There doesn't seem to be any way to double-check that.
-                (comment (mq/recv-str auth-killer))
-                ;; This is another functional abstraction just begging
-                ;; for attention...I've already forgotten how to actually use it.
+                ;; If the other side's alive, it really should ACK pretty much immediately.
                 (let [poller (mq/socket-poller-in [auth-killer])]
+                  ;; The 0 indicates that we're checking the first [and only]
+                  ;; poller. Really need some sort of timeout option. I think.
                   (when-not (.pollin poller 0)
-                    ;; This seems interesting...I'm getting an error here
-                    ;; that I cannot recur across try.
-                    (recur (dec retries))))))))
-      (do
-        (println "No networking context...WTF?"))))
-  (println "Authentication thread gone"))
+                    ;; This is lame...but I have to start somewhere.
+                    ;; If the sockets are all tied up doing something else, this much delay
+                    ;; really ought to be enough to unstick them.
+                    ;; Of course, magic numbers like this are evil!
+                    (Thread/sleep 75)
+                    (kill-authenticator universe (dec retries))))))
+            
+            (do
+              (println "No networking context...WTF?"))))
+        (println "Authentication thread gone"))))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
@@ -194,13 +229,14 @@ resources. Returns an updated instance of the system, ready to re-start."
       (println "Have a context to shut down")
       (try
         (kill-authenticator universe)
+        (println "Authenticator killer didn't throw")
         (finally
           ;; FIXME: Shouldn't these be inside finally blocks?
           ;; Or whatever the clojure equivalent is.
-          (when-let [sock (:clients universe)]
+          (when-let [sock @(:clients universe)]
             (.close sock))
           (println "Client thread closed")
-          (when-let [sock (:master-connection universe)]
+          (when-let [sock @(:master-connection universe)]
             (.close sock))
           (println "Master connection closed")
           (.term ctx)))))
