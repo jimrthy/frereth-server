@@ -1,7 +1,8 @@
 (ns frereth-server.core
   (:gen-class)
-  (:require ;[qbits.jilch.mq :as mq]
-   [zguide.zhelpers :as mq]
+  (:require
+   [zeromq.zmq :as mq]
+   [zguide.zhelpers :as mqh]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]))
 
@@ -30,13 +31,20 @@
         ;; Adding complications at this point leads to madness.
         thread-count (get-cpu-count)
         master-port (:master (:ports system))]
+    ;; What's the point of this?
+    ;; System should already be listening on everything
+    ;; that matters.
+    ;; What on earth is there to do here?
+    ;; This should probably just go ahead and exit...
+    ;; as long as the system threads are alive the VM
+    ;; should keep going.
     (println "Listening on " thread-count " thread connections")
-    (mq/with-context [context thread-count]
+    (mqh/with-context [context thread-count]
       (do
         (with-open [master-socket (-> context
-                                      (mq/socket (mq/const :dealer))
+                                      (mq/socket :dealer)
                                       (mq/bind (str "tcp://127.0.0.1:" master-port)))]
           ;; Let's start with ECHO
-          (let [pull (future (mq/recv master-socket))]
+          (let [pull (future (mq/receive master-socket))]
             (let [msg @pull]
               (mq/send master-socket msg))))))))

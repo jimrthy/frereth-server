@@ -1,5 +1,6 @@
 (ns frereth-server.auth-socket
-  (:require [zguide.zhelpers :as mq]
+  (:require [zguide.zhelpers :as mqh]
+            [zeromq.zmq :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
             )
@@ -18,7 +19,7 @@ thinking about crap like this in issues."
     (.write w "\n")))
 
 (defn- read-message [s]
-  (mq/recv-all-str s))
+  (mqh/recv-all-str s))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -95,7 +96,8 @@ thought."
   echo)
 
 (defn- send-message
-  "Like with read-message, this theoretically gets vaguely interesting with multi-part messages.
+  "Like with read-message, this theoretically gets vaguely interesting 
+with multi-part messages.
 Oops. Backwards parameters."
   [s msgs]
   ;; Performance isn't a consideration, really.
@@ -111,7 +113,7 @@ Oops. Backwards parameters."
       ;; Probably.
       (log (format "Sending: %s" msgs))
       (log (format "\nto\n%s" s))
-      (mq/send-all s msgs))))
+      (mqh/send-all s msgs))))
 
 
 (defn- authenticator
@@ -133,54 +135,85 @@ assignment and don't surrender to laziness."
   ;; but it seems pretty blindingly obvious.
   ;; The alternative simplifies the client ("I only need 1 socket!")
   ;; but not by much. Certainly not enough to qualify as an upside.
-  (let [listener (mq/socket ctx (mq/const :dealer))]
-    (mq/bind listener (format "tcp://*:%d" auth-port))
+  ;; FIXME: Rewrite this using with-socket.
+  (let [listener (mq/socket ctx :dealer)]
+    (try
+      ;; Note that this is really at the heart of how the server
+      ;; works:
+      ;; No one except localhost should realistically be connecting
+      ;; to the master socket. Except most 'real' servers will
+      ;; want to work exactly that way...the alternative is
+      ;; to ssh in before connecting.
+      ;; Which is way more secure, of course.
+      ;; But that doesn't have anything to do with *this*
+      ;; socket.
+      ;; This socket is for general client connections.
+      ;; So remote clients should probably be rejected
+      ;; by default, but some user totally needs to have
+      ;; the ability to open up to a wider audience.
+      ;; Or limiting to, say, the LAN.
+      ;; Which really means killing and restarting this
+      ;; socket at runtime.
+      ;; Have to think my way through this, but not now.
+      ;; Right now, I have other priorities.
+      ;; FIXME: What should this actually be listening on?
+      (mq/bind listener (format "tcp://*:%d" auth-port))
 
-    (let [poller (mq/socket-poller-in [listener])]
-      (try
-        (while (not @done-reference)
-          ;; Well, this is where the handshake and such actually goes.
-          ;; Doesn't it?
+      ;; FIXME: Rewrite this using with-poller.
+      (let [poller (mq/poller ctx)]
+        (mq/register poller listener :pollin :pollerr)
+        (try
+          (while (not @done-reference)
+            ;; This is where the handshake and such actually goes.
+            ;; Doesn't it?
 
-          ;; Well...how much, if any, of this should happen here?
-          ;; It seems like this probably *should* be pretty transparent,
-          ;; so I can implement something blindly stupid here, then
-          ;; not need to rewrite a bunch of crap when it's time to be less
-          ;; stupid.
-          ;; I strongly suspect that I'm actually looking for the
-          ;; majordomo pattern.
+            ;; Well...how much, if any, of this should happen here?
+            ;; It seems like this probably *should* be pretty transparent,
+            ;; so I can implement something blindly stupid here, then
+            ;; not need to rewrite a bunch of crap when it's time to be less
+            ;; stupid.
+            ;; I strongly suspect that I'm actually looking for the
+            ;; majordomo pattern.
 
-          ;; poll for a request.
-          (.poll poller)
+            ;; poll for a request.
+            (mq/poll poller)
 
-          ;; That means that system/stop needs to send a "die" message
-          ;; to this port.
-          ;; Or reset done to true.
-          ;; Still need the die message: otherwise we stay frozen at the (poll)
+            ;; That means that system/stop needs to send a "die" message
+            ;; to this port.
+            ;; Or reset done to true.
+            ;; Still need the die message: otherwise we stay frozen at the 
+            ;; (poll)
 
-          ;; FIXME: Bind a specific socket to a specific port just for
-          ;; that message?
+            ;; FIXME: Bind a specific socket to a specific port just for
+            ;; that message?
 
-          ;; What's the memory overhead involved in that?
-          ;; It seems like it can't possibly be worth worrying about.
+            ;; What's the memory overhead involved in that?
+            ;; It seems like it can't possibly be worth worrying about.
 
-          ;; For other message types, work through a login sequence.
-          ;; Possibly present a potential client with details about
-          ;; what to do/where to go next.
-          (if (.pollin poller 0)
-            (let [request (read-message listener)]
-              ;; I can see request being a lazy sequence.
-              ;; But (doall ...) is documented to realize the entire sequence.
-              ;; Here's a hint: it still returns a LazySeq, apparently
-              (log (str "REQUEST: " (doall request)))
-              (doseq [msg request]
-                (log msg))
-              (comment (throw (RuntimeException. "WTF?")))
-              (let [response (dispatch request)]
-                (send-message listener response)))
-            (throw (RuntimeException. "How'd we get here?"))))
-        (finally
-          (.close listener))))))
+            ;; For other message types, work through a login sequence.
+            ;; Possibly present a potential client with details about
+            ;; what to do/where to go next.
+            (if (mq/check-poller poller 0 :pollin)
+              (let [request (read-message listener)]
+                ;; I can see request being a lazy sequence.
+                ;; But (doall ...) is documented to realize the entire sequence.
+                ;; Here's a hint: it still returns a LazySeq, apparently
+                (log (str "REQUEST: " (doall request)))
+                (doseq [msg request]
+                  (log msg))
+                (let [response (dispatch request)]
+                  (send-message listener response)))
+              (throw (RuntimeException. "How'd we get here?")))
+            (if (mq/check-poller poller 0 :pollerr)
+              (throw (RuntimeException. "What should happen here?"))))
+          (finally
+            (mq/unregister poller listener))))
+      (finally
+        ;; Really need to set the ZMQ_LINGER option so
+        ;; this won't block if there are unsent messages in
+        ;; the queue.
+        ;; Or maybe not...see what happens.
+        (mq/close listener)))))
 
 
 (defn runner

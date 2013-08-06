@@ -18,14 +18,30 @@
 
 
 (defmacro with-socket [[name context type] & body]
-  `(let [~name (socket ~context ~type)]
+  `(let [~name (mq/socket ~context ~type)]
      (try ~@body
           (finally (.close ~name)))))
 
+(defmacro with-poller [poller-name context socket & body]
+  "Cut down on some of the boilerplate around pollers.
+What's left still seems pretty annoying."
+  ;; I don't think I actually need this sort of gensym
+  ;; magic with clojure, do I?
+  (let [name# poller-name
+        ctx# context
+        s# socket]
+    `(let [~name# (mq/poller ~ctx#)]
+       (mq/register ~name# ~s# :pollin :pollerr)
+       (try
+         ~@body
+         (finally
+           (mq/unregister ~name# ~s#))))))
+
 (comment (defn queue
   "Forwarding device for request-reply messaging.
-FIXME: What is this next function actually for?
-cljzmq doesn't seem to have an equivalent." 
+cljzmq doesn't seem to have an equivalent.
+It almost definitely needs one.
+FIXME: Fork that repo, add this, send a Pull Request."
   [#^ZMQ$Context context #^ZMQ$Socket frontend #^ZMQ$Socket backend]
   (ZMQQueue. context frontend backend)))
 
@@ -93,4 +109,3 @@ Then again, it's fairly lispy...callers can always rediret STDOUT."
       (identify socket (str (.nextLong rdn) "-" (.nextLong rdn) n))))
   ([#^ZMQ$Socket socket]
      (set-id socket 0))))
-

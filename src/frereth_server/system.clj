@@ -1,7 +1,8 @@
 (ns frereth-server.system
   (:gen-class)
   (:require [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mq])
+            [zguide.zhelpers :as mqh]
+            [zeromq.zmq :as mq])
   (:gen-class))
 
 (defn init
@@ -15,11 +16,17 @@ I really need to figure out what I want to do here."
    ;; Actual controller socket.
    ;; If the context changes, then all the sockets that use it must also.
    :master-connection (atom nil)
+
    ;; It seems pretty likely that this is important.
    ;; At least for remote servers that might very well
    ;; be load-balanced, or some such.
+   ;; Of course, that's really a bad reason for it to 
+   ;; exist now.
    :broker (atom nil)
+
    ;; Signal everything that we're finished.
+   ;; Not elegant...but it's already enough of a PITA to qualify
+   ;; as YAGNI.
    :done (atom nil)
 
    ;; These seem like lower-level configuration details that don't 
@@ -37,7 +44,9 @@ and start it running. Returns an updated instance of the system."
   ;; Some combination of doto and -> (->> ?) seems appropriate here
   (assert (not @(:network-context universe)))
   (assert (not @(:master-connection universe)))
-  ;; What on earth did I have planned for this?
+  ;; Q: What on earth did I have planned for this?
+  ;; A: My best guess is something along the lines of
+  ;; majordomo.
   (assert (not @(:broker universe)))
   (assert (not @(:done universe)))
 
@@ -72,7 +81,11 @@ and start it running. Returns an updated instance of the system."
         
         ;; Connection to localhost for Ultimate Power...
         ;; this should, honestly, be something like NREPL
-        master-socket (mq/socket context (mq/const :rep))
+        ;; REP is absolutely the wrong type of socket, though.
+        ;; Check RRR patterns. At the very least, change
+        ;; it to a Dealer.
+        ;; FIXME: Make it so.
+        master-socket (mq/socket context :rep)
 
         ;; Where does the actual action happen?
         ;; Note that this is the connection that, say, sys-ops should use
@@ -112,7 +125,7 @@ and start it running. Returns an updated instance of the system."
         ;; approach:
         ;; It doesn't.
         ;; Worry about it some other time.
-        client-socket (mq/socket context (mq/const :pub))]
+        client-socket (mq/socket context :pub)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
@@ -161,8 +174,6 @@ and start it running. Returns an updated instance of the system."
     ;; Return the updated system.
     {:done done
      :network-context (atom context)
-     ;; It's tempting to store these in atoms.
-     ;; I'm not sure why I feel that temptation.
      :master-connection (atom master-socket)
      :clients (atom client-socket)
      :authentication-thread (atom auth-thread)
@@ -175,7 +186,9 @@ and start it running. Returns an updated instance of the system."
 I originally tried to TCO with loop/recur, but that just does not
 play nicely with killing off the client socket and retrying on
 failure.
-It doesn't recurse deeply, so don't worry about that."
+It doesn't recurse deeply, so don't worry about that.
+I'm waffling about whether this belongs in this namespace
+or auth-socket."
   ([universe]
      ;; Just go with what seems like a reasonable default
      ;; for the retry count
@@ -189,28 +202,42 @@ It doesn't recurse deeply, so don't worry about that."
        (if-let [ctx @(:network-context universe)]
          (do
            (when (< 0 retries)
-             (mq/with-socket [auth-killer ctx (mq/const :req)]
-               (println "There are " retries " attempts left to be rid of ports")
+             (mqh/with-socket [auth-killer ctx :req]
+               (println "There are " retries 
+                        " attempts left to be rid of ports")
                
                ;; Now we can start killing off the interesting shit
-               (mq/connect auth-killer (format "tcp://127.0.0.1:%d" (ports :auth)))
-               ;; send is async, right? There isn't any point to specifying NOBLOCK here,
+               (mq/connect auth-killer (format "tcp://127.0.0.1:%d"
+                                               (ports :auth)))
+               ;; send is async, right? There isn't any point
+               ;; to specifying NOBLOCK here,
                ;; is there?
-               (mq/send auth-killer "dieDieDIE!!")
+               (mqh/send auth-killer "dieDieDIE!!")
                (println "Death sentence sent")
 
-               ;; If the other side's alive, it really should ACK pretty much immediately.
-               (let [poller (mq/socket-poller-in [auth-killer])]
-                 ;; The 0 indicates that we're checking the first [and only]
-                 ;; poller. Really need some sort of timeout option. I think.
-                 (when-not (.pollin poller 0)
-                   ;; This is lame...but I have to start somewhere.
-                   ;; If the sockets are all tied up doing something else, this much delay
-                   ;; really ought to be enough to unstick them.
-                   ;; Of course, magic numbers like this are evil!
-                   (Thread/sleep 75)
-                   (kill-authenticator universe (dec retries)))))))
-          
+               ;; If the other side's alive, it really should 
+               ;; ACK pretty much immediately.
+               ;; This is the second time I've needed
+               ;; this sort of boiler plate.
+               ;; FIXME: Use with-poller instead
+               (let [poller (mq/poller ctx)]
+                 (mq/register poller auth-killer :pollin :pollerr)
+                 ;; The 0 indicates that we're checking the first 
+                 ;; [and only]
+                 ;; poller. Really need some sort of timeout option. 
+                 ;; I think.
+                 ;; Compare with auth-socket.
+                 (if (mq/check-poller poller 0 :pollerr)
+                   (throw (RuntimeException.
+                           "AUTH socket error! Be smarter"))
+                   (when-not (mq/check-poller poller 0 :pollin)
+                     ;; This is lame...but I have to start somewhere.
+                     ;; If the sockets are all tied up doing something
+                     ;; else, this much delay
+                     ;; really ought to be enough to let them unstick.
+                     ;; Of course, magic numbers like this are evil!
+                     (Thread/sleep 75)
+                     (kill-authenticator universe (dec retries))))))))
          (println "No networking context...WTF?")))
      (println "Authentication thread gone")))
 
@@ -230,7 +257,6 @@ resources. Returns an updated instance of the system, ready to re-start."
         (kill-authenticator universe)
         (println "Authenticator killer didn't throw")
         (finally
-          ;; FIXME: Shouldn't these be inside finally blocks?
           ;; Or whatever the clojure equivalent is.
           (when-let [sock @(:clients universe)]
             (.close sock))
