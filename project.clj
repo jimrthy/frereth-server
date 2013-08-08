@@ -10,11 +10,6 @@
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/tools.namespace "0.2.3"]
                                   [org.clojure/java.classpath "0.2.0"]
-                                  [expectations "1.4.49"]
-                                  ;; Should go away
-                                  [speclj "2.5.0"]]}}
-  :plugins [[lein-expectations "0.0.7"]
-            ;; Should also go away
-            [speclj "2.5.0"]]
-  :test-paths ["spec/"]
+                                  [expectations "1.4.49"]]}}
+  :plugins [[lein-expectations "0.0.7"]]
   :main frereth-server.core)
