@@ -161,6 +161,8 @@ assignment and don't surrender to laziness."
         (mq/register poller listener :pollin :pollerr)
         (try
           (while (not @done-reference)
+            ;; FIXME: I really don't want to do busy polling here.
+
             ;; This is where the handshake and such actually goes.
             ;; Doesn't it?
 
@@ -191,7 +193,7 @@ assignment and don't surrender to laziness."
             ;; For other message types, work through a login sequence.
             ;; Possibly present a potential client with details about
             ;; what to do/where to go next.
-            (if (mq/check-poller poller 0 :pollin)
+            (when (mq/check-poller poller 0 :pollin)
               (let [request (read-message listener)]
                 ;; I can see request being a lazy sequence.
                 ;; But (doall ...) is documented to realize the entire sequence.
@@ -201,9 +203,8 @@ assignment and don't surrender to laziness."
                   (log msg))
                 (log "Dispatching response:\n")
                 (let [response (dispatch request)]
-                  (send-message listener response)))
-              (throw (RuntimeException. "How'd we get here?")))
-            (if (mq/check-poller poller 0 :pollerr)
+                  (send-message listener response))))
+            (when (mq/check-poller poller 0 :pollerr)
               (throw (RuntimeException. "What should happen here?"))))
           (finally
             (mq/unregister poller listener))))

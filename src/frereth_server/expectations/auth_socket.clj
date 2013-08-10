@@ -1,14 +1,15 @@
 (ns frereth-server.expectations.auth-socket
   (:use expectations)
-  (:require [frereth-server.util :as util]
+  (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mq]))
+            [zeromq.zmq :as mq]
+            [zguide.zhelpers :as mqh]))
 
 (defn setup
   "Because I need a socket to send these requests from"
   [world]
   (let [ctx @(world :network-context)
-        s (mq/socket @ctx (:req mq/const))
+        s (mq/socket @ctx (:req mq/socket-types))
         address (format "tcp://127.0.0.1:%d" (:auth (:ports world)))]
     (mq/connect s address)
     {:socket s}))
@@ -20,7 +21,7 @@ but I don't see it anywhere"
   (.close (:socket locals)))
 
 (defn suite
-  "Let util set up the world for testing, pass that to setup, call f, then call teardown
+  "Let sys set up the world for testing, pass that to setup, call f, then call teardown
 and util will finish.
 Whew! I'm more than a little amazed that I still don't have any use for a macro.
 I'm more than a little leery that my unit tests are needing to be so fancy.
@@ -32,21 +33,21 @@ Then again, I guess this is saving a ton of duplicated code."
                        (f world locals)
                        (finally (teardown locals)))))]))
 
-(defn req/rep
+(defn req<->rep
   "Send a request to the authentication socket's auth port, return its response"
   [r s]
-  (mq/send s r)
-  (mq/recv-str s))
+  (mqh/send s r)
+  (mq/receive-str s))
 
 ;; I don't particularly feel happy about using strings like this...
 ;; I feel like I should really be doing this with symbols, or
 ;; possibly keywords
 (let [kill (fn [world locals]
-             ;; Nested atoms like this seems totally wrong.
              (reset! (:done @world) true)
-             ;; Especially since I'm not doing a deref below
+             (mqh/send "ping") ; Shouldn't matter what goes here
+             (Thread/sleep 50) ; Should be plenty of time for it to shut down
              (let [auth-thread (:authentication-thread world)]
-               (expect "K" (req/rep (socket locals) "dieDieDIE!!"))))]
+               (expect false (.isAlive auth-thread))))]
   ;; Wow. This seems either really sweet or really sick.
   ;; Worry about it later...this is really just clearing a path so
   ;; I can move forward with something that resembles real work.
@@ -84,7 +85,7 @@ Then again, I guess this is saving a ton of duplicated code."
                       ;; client is now an mq/req socket, that should be
                       ;; connected to the server we're testing
                       (expect "What?"
-                              (req/rep client login-sequence))))]
+                              (req<->rep client login-sequence))))]
   (suite basic-login))
 
 (let [path-log (fn 
@@ -111,11 +112,11 @@ Baby steps."
                  ;; Barely a kissing cousin, in fact.
                  (let [s (:socket locals)]
                    (expect 'ohai
-                           (req/rep 'hai s))
+                           (req<->rep 'hai s))
                    (expect 'lolz
-                           (req/rep ['me-speekz nil]))
+                           (req<->rep ['me-speekz nil]))
                    (expect 'oryl?
-                           (req/rep (list 'ib 'test)))
+                           (req<->rep (list 'ib 'test)))
 
                    ;; Now we're getting into something deeper...
                    ;; really assumes that the server is maintaining some sort
@@ -129,6 +130,6 @@ Baby steps."
                    ;; wrote this and then decided that it's *way* too
                    ;; ambitious for this version.
                    (comment (expect 'wachu-wantz?
-                                    (req/rep ['yarly "Really secure signature"])))
+                                    (req<->rep ['yarly "Really secure signature"])))
                    (expect "RDYPLYR1"
-                           (req/rep ['icanhaz? 'play]))))])
+                           (req<->rep ['icanhaz? 'play]))))])
