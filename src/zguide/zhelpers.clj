@@ -50,7 +50,15 @@ FIXME: Fork that repo, add this, send a Pull Request."
 
 (defmethod send String
   ([#^ZMQ$Socket socket #^String message flags]
-     (mq/send socket (.getBytes message) flags))
+     ;; If the received flags are a keyword, convert from clzmq.
+     ;; Otherwise, assume they're a string.
+     (let [actual-flags
+           (if (keyword? flags)
+             (do (println (format "Sending '%s' with flags %s" message (name flags)))
+                 (mq/socket-options flags))
+             flags)]
+       (println (format "Sending '%s' with flags %d" message actual-flags))
+       (mq/send socket (.getBytes message) actual-flags)))
   ([#^ZMQ$Socket socket #^String message]
      (send socket message :no-block)))
 

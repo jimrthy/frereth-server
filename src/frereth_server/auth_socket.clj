@@ -68,12 +68,9 @@ thought."
   (log "\n(that's some sort of SEQ of messages)\n")
 
   ;; Q: What are the odds that I can call a method this way?
+  ;; A: Not very good.
   (comment (dorun dispatch msgs))
-  ;; That's failing. Then again, so is this:
-  (print "Dispatching a sequence of messages: " msgs)
-  ;; Well, at least, I'm not seeing any output there.
-  ;; Apparently, expectations redirects STDOUT
-  ;;(throw (RuntimeException. "Why didn't that show up?"))
+  (log (str "Dispatching a sequence of messages: " msgs))
   
   ;; This fails in the same way: cannot convert a MultiFn to a java.lang.Number:
   (comment (dorun #(dispatch %) msgs))
@@ -112,7 +109,7 @@ Oops. Backwards parameters."
       ;; a performance-critical section.
       ;; Probably.
       (log (format "Sending: %s" msgs))
-      (log (format "\nto\n%s" s))
+      (log (format "\nto\n%s\n" s))
       (mqh/send-all s msgs))))
 
 
@@ -176,6 +173,7 @@ assignment and don't surrender to laziness."
             ;; majordomo pattern.
 
             ;; poll for a request.
+            ;; Do I need to specify a timeout?
             (mq/poll poller)
 
             ;; That means that system/stop needs to send a "die" message
@@ -198,9 +196,10 @@ assignment and don't surrender to laziness."
                 ;; I can see request being a lazy sequence.
                 ;; But (doall ...) is documented to realize the entire sequence.
                 ;; Here's a hint: it still returns a LazySeq, apparently
-                (log (str "REQUEST: " (doall request)))
+                (log (str "REQUEST: " (doall request) "\nMessages in request:\n"))
                 (doseq [msg request]
                   (log msg))
+                (log "Dispatching response:\n")
                 (let [response (dispatch request)]
                   (send-message listener response)))
               (throw (RuntimeException. "How'd we get here?")))
