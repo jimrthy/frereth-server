@@ -183,6 +183,11 @@ and start it running. Returns an updated instance of the system."
 
 (defn kill-authenticator
   "Tell the authenticator socket to kill itself.
+Note that this is more than a tad backwards:
+The authenticator socket receiving this signal should really
+be considered an instruction to do a system/exit() to
+totally kill the JVM. But maybe I'm thinking too far ahead.
+
 I originally tried to TCO with loop/recur, but that just does not
 play nicely with killing off the client socket and retrying on
 failure.
