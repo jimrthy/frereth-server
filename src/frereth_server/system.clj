@@ -200,6 +200,7 @@ or auth-socket."
      (kill-authenticator universe 5))
 
   ([universe retries]
+     (throw (RuntimeException. "Should this be called from here?"))
      ;; FIXME: Add an atom to universe to indicate that we expect
      ;; authenticator to be around in the first place. If it's the
      ;; first time through, don't waste time on this.
@@ -259,10 +260,18 @@ resources. Returns an updated instance of the system, ready to re-start."
     (when-let [ctx @(:network-context universe)]
       (println "Have a context to shut down")
       (try
-        (kill-authenticator universe)
-        (println "Authenticator killer didn't throw")
+        ;;(kill-authenticator universe)
+        ;;(println "Authenticator killer didn't throw")
+        (let [done (:done universe)]
+          (when (not @done)
+            (swap! done false)
+            (let [auth-thread @(:authentication-thread universe)]
+              (.join auth-thread 500)
+              (println "Authentication thread has exited"))))
+        (catch InterruptedException e
+          (str "Exception waiting for authentication thread to exit: "
+               (.getMessage e)))
         (finally
-          ;; Or whatever the clojure equivalent is.
           (when-let [sock @(:clients universe)]
             (.close sock))
           (println "Client thread closed")
@@ -277,7 +286,7 @@ resources. Returns an updated instance of the system, ready to re-start."
           ;; those messages before exiting.
           ;; This does not work.
           ;; FIXME: How do I force it to accept failure?
-          (throw (RuntimeException. "Start here"))
+          ;;(throw (RuntimeException. "Start here"))
           (.term ctx)))))
   (println "Universe destroyed.")
   ;; Just return a completely fresh instance.
