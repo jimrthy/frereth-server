@@ -103,7 +103,7 @@ cljzmq doesn't seem to have an equivalent.
 It almost definitely needs one.
 FIXME: Fork that repo, add this, send a Pull Request."
   [#^ZMQ$Context context #^ZMQ$Socket frontend #^ZMQ$Socket backend]
-  (ZMQQueue. context frontend backend))
+  (ZMQQueue. context frontend backend)))
 
 (defn bind
   [#^ZMQ$Socket socket url]
