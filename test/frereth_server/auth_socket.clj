@@ -1,230 +1,135 @@
-(ns frereth-server.auth-socket
-  (:require [zguide.zhelpers :as mqh]
+(ns frereth-server.test.auth-socket
+  (:use expectations)
+  (:require [frereth-server.system :as sys]
+            [frereth-server.auth-socket :as auth]
             [zeromq.zmq :as mq]
-            ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
-            [clojure.java.io :as io]
-            )
-  (:gen-class))
+            [zguide.zhelpers :as mqh]))
 
-(defn- log [msg]
-  "FIXME: Debug only.
-If nothing else, it does not belong here. And should not be writing to
-anything in /tmp.
-For that matter...whatever. I need to get around to implementing 'real'
-logging.
-This is a decent placeholder until I have enough written to justify
-thinking about crap like this in issues."
-  (with-open [w (io/writer "/tmp/log.txt" :append true)]
-    (.write w (str msg))
-    (.write w "\n")))
+(defn setup
+  "Because I need a socket to send these requests from"
+  [world]
+  (let [ctx @(world :network-context)
+        s (mq/socket @ctx (:req mq/socket-types))
+        address (format "tcp://127.0.0.1:%d" (:auth (:ports world)))]
+    (mq/connect s address)
+    {:socket s}))
 
-(defn- read-message [s]
-  (mqh/recv-all-str s))
+(defn teardown 
+  "It's tough to believe that expectations doesn't build this in...
+but I don't see it anywhere"
+  [locals]
+  (.close (:socket locals)))
 
-(defn- dispatcher [msg]
-  "This is just screaming for something like cond.
-It seems pretty important to remember that this isn't
-exactly performance-critical code.
-But it sort-of is.
-*If* a server's successful, people will hammer it pretty
-much constantly after it boots.
-Might be nice to allow players to download new worlds in
-the background and switch over to them fairly seamlessly,
-ignoring the entire patch day BS. Actually, that'd be
-a delightful advantage of using freenet.
-With the downside of supporting old servers until clients
-switch to the new version. It seems like an interesting
-thought."
-  (if (string? msg)
-    msg
-    (when (seq msg)
-      ;; Just got a batch of messages. What do they mean?
-      ;; For starters, go with super-easy
-      ;; I bet this is at least part of my problem: I *really* have a
-      ;; java-style byte[]. I bet that qualifies as a seq.
-      :list)))
+(defn suite
+  "Let sys set up the world for testing, pass that to setup, call f, then call teardown
+and util will finish.
+Whew! I'm more than a little amazed that I still don't have any use for a macro.
+I'm more than a little leery that my unit tests are needing to be so fancy.
+Then again, I guess this is saving a ton of duplicated code."
+  [f]
+  (let [local (fn [world]
+                (let [locals (setup world)]
+                     (try
+                       (f world locals)
+                       (finally (teardown locals)))))]))
 
-(defmulti ^:private dispatch
-  "Based on message, generate response"
-  dispatcher)
+(defn req<->rep
+  "Send a request to the authentication socket's auth port, return its response"
+  [r s]
+  (mqh/send s r)
+  (mq/receive-str s))
 
-(defmethod dispatch "dieDieDIE!!"
-  [_]
-  ;; Really just a placeholder message indicting that it's OK to quit
-  ;; Note that we are *not* getting here
-  (log "Quit permission")
-  "K")
+;; I don't particularly feel happy about using strings like this...
+;; I feel like I should really be doing this with symbols, or
+;; possibly keywords
+(let [kill (fn [world locals]
+             (reset! (:done @world) true)
+             (mqh/send "ping") ; Shouldn't matter what goes here
+             (Thread/sleep 50) ; Should be plenty of time for it to shut down
+             (let [auth-thread (:authentication-thread world)]
+               (expect false (.isAlive auth-thread))))]
+  ;; Wow. This seems either really sweet or really sick.
+  ;; Worry about it later...this is really just clearing a path so
+  ;; I can move forward with something that resembles real work.
+  (suite kill))
 
-(defmethod dispatch "ping"
-  [_]
-  (log "Heartbeat")
-  "pong")
+(let [basic-login (fn [world locals]
+                    ;; This is trickier than I realized.
+                    ;; I really want to send a multi-part message.
+                    ;; Something along these lines:
+                    ;; 1) ib <user-id>
+                    ;; 2) me-wantz-play <protocol versions client understands>
+                    ;; 3) <signature>
+                    ;; That approach seems like it will just make
+                    ;; life simpler from any angle that comes to mind.
+                    ;; Dispatcher gets more complicated,but that isn't
+                    ;; a big deal.
+                    ;; Meh. Do the Q&A version or block sequence.
+                    ;; Whatever. They should both work here.
+                    ;; And I really don't care what they look like over
+                    ;; the wire...until we get to security.
+                    ;;
+                    ;; c.f. http://rfc.zeromq.org/spec:27
+                    ;; (the 0mq Authentication Protocol)
+                    (let [login-sequence ["ohai"
+                                          ;; Q: Can I make a client dumber than this?
+                                          ;; A: I really shouldn't challenge
+                                          ;; myself that way.
+                                          ["icanhaz?" "me-speekz" 
+                                           [:youre-kidding nil "login-id" nil]] 
+                                          ["yarly" "ib" "test"]
 
-(defmethod dispatch :list [msgs]
-  ;; Based on the next line, I have something like a Vector of byte arrays.
-  ;; Which seems pretty reasonable.
-  (log "Dispatching :list:\n")
-  (log msgs)
-  (log "\n(that's some sort of SEQ of messages)\n")
+                                          ["yarly" "Really secure signature"]
+                                          ["icanhaz?" "me-wantz-play"]]
+                          client (:socket locals)]
+                      ;; client is now an mq/req socket, that should be
+                      ;; connected to the server we're testing
+                      (expect "What?"
+                              (req<->rep client login-sequence))))]
+  (suite basic-login))
 
-  ;; Q: What are the odds that I can call a method this way?
-  ;; A: Not very good.
-  (comment (dorun dispatch msgs))
-  (log (str "Dispatching a sequence of messages: " msgs))
-  
-  ;; This fails in the same way: cannot convert a MultiFn to a java.lang.Number:
-  (comment (dorun #(dispatch %) msgs))
-  ;; Or possibly my real problem is laziness?
-  (comment (for [m msgs]
-             (throw (RuntimeException. (str m)))))
+(let [path-log (fn 
+                 "Pathological login mess.
+Deliberately designed to be as ugly and painful as I can make it.
+I *want* to try to break the server here.
+Actually, I need lots and lots of these.
+And something that builds a million threads doing this sort of thing
+and throws them all at the server at once.
+Baby steps."
+                 [world locals]
+                 ;; Q: Why am I even thinking about subjecting myself to this?
+                 ;; A: Because this is what unit tests are for.
+                 ;; Just write the obnoxious thing so it's documented.
 
-  (comment (log "Anything interesting?\n"))
+                 ;; Brain-dead client. Don't care about the response
+                 ;; at all.
+                 ;; Server needs to be robust enough to handle clients
+                 ;; this evil. And worse.
+                 ;; Skip reading the response...this is really a regression
+                 ;; test case. Should test the normal flow control first.
 
-  (log msgs)
-  (if-let [car (first msgs)]
-    (do
-      (log car)
-      (dispatch (rest msgs)))
-    (do
-      (log (str "Empty CAR. CDR: " (rest msgs))))))
+                 ;; Actually, this client isn't particularly evil.
+                 ;; Barely a kissing cousin, in fact.
+                 (let [s (:socket locals)]
+                   (expect 'ohai
+                           (req<->rep 'hai s))
+                   (expect 'lolz
+                           (req<->rep ['me-speekz nil]))
+                   (expect 'oryl?
+                           (req<->rep (list 'ib 'test)))
 
-(defmethod dispatch :default
-  [echo]
-  echo)
-
-(defn- send-message
-  "Like with read-message, this theoretically gets vaguely interesting 
-with multi-part messages.
-Oops. Backwards parameters."
-  [s msgs]
-  ;; Performance isn't a consideration, really.
-  ;; Is it?
-  ;; Not for authentication. We expect this to take a while.
-  ;; By its very nature, it pretty much has to.
-  (if (string? msgs)
-    (mq/send s msgs)
-    (do
-      ;; Just assume that means it's a sequence.
-      ;; I hate to break this up like this, but it just is not
-      ;; a performance-critical section.
-      ;; Probably.
-      (log (format "Sending: %s" msgs))
-      (log (format "\nto\n%s\n" s))
-      (mqh/send-all s msgs))))
-
-
-(defn- authenticator
-  "Deal with authentication requests.
-done-reference lets someone else trigger a 'stop' signal.
-What seems particularly obnoxious about this: I don't really care
-about this just now, and it probably isn't relevant in the long run.
-I just want the basic testing to work. So count it as a homework
-assignment and don't surrender to laziness."
-  [ctx done-reference auth-port]
-  ;; This looks like an ugly weakness in my scheme:
-  ;; The client needs to connect to a dealer socket
-  ;; to auth. Then, realistically, it needs to switch to
-  ;; another dealer socket for actual command/control and
-  ;; a sub socket for game state updates.
-  ;; It's very tempting to just re-use this auth socket
-  ;; for game data.
-  ;; Not doing so may qualify as premature optimization,
-  ;; but it seems pretty blindingly obvious.
-  ;; The alternative simplifies the client ("I only need 1 socket!")
-  ;; but not by much. Certainly not enough to qualify as an upside.
-  ;; FIXME: Rewrite this using with-socket.
-  (let [listener (mq/socket ctx :dealer)]
-    (try
-      ;; Note that this is really at the heart of how the server
-      ;; works:
-      ;; No one except localhost should realistically be connecting
-      ;; to the master socket. Except most 'real' servers will
-      ;; want to work exactly that way...the alternative is
-      ;; to ssh in before connecting.
-      ;; Which is way more secure, of course.
-      ;; But that doesn't have anything to do with *this*
-      ;; socket.
-      ;; This socket is for general client connections.
-      ;; So remote clients should probably be rejected
-      ;; by default, but some user totally needs to have
-      ;; the ability to open up to a wider audience.
-      ;; Or limiting to, say, the LAN.
-      ;; Which really means killing and restarting this
-      ;; socket at runtime.
-      ;; Have to think my way through this, but not now.
-      ;; Right now, I have other priorities.
-      ;; FIXME: What should this actually be listening on?
-      (mq/bind listener (format "tcp://*:%d" auth-port))
-
-      ;; FIXME: Rewrite this using with-poller.
-      (let [poller (mq/poller ctx)]
-        (mq/register poller listener :pollin :pollerr)
-        (try
-          (while (not @done-reference)
-            ;; FIXME: I really don't want to do busy polling here.
-
-            ;; This is where the handshake and such actually goes.
-            ;; Doesn't it?
-
-            ;; Well...how much, if any, of this should happen here?
-            ;; It seems like this probably *should* be pretty transparent,
-            ;; so I can implement something blindly stupid here, then
-            ;; not need to rewrite a bunch of crap when it's time to be less
-            ;; stupid.
-            ;; I strongly suspect that I'm actually looking for the
-            ;; majordomo pattern.
-
-            ;; poll for a request.
-            ;; Do I need to specify a timeout?
-            (mq/poll poller)
-
-            ;; That means that system/stop needs to send a "die" message
-            ;; to this port.
-            ;; Or reset done to true.
-            ;; Still need the die message: otherwise we stay frozen at the 
-            ;; (poll)
-
-            ;; FIXME: Bind a specific socket to a specific port just for
-            ;; that message?
-
-            ;; What's the memory overhead involved in that?
-            ;; It seems like it can't possibly be worth worrying about.
-
-            ;; For other message types, work through a login sequence.
-            ;; Possibly present a potential client with details about
-            ;; what to do/where to go next.
-            (when (mq/check-poller poller 0 :pollin)
-              (let [request (read-message listener)]
-                ;; I can see request being a lazy sequence.
-                ;; But (doall ...) is documented to realize the entire sequence.
-                ;; Here's a hint: it still returns a LazySeq, apparently
-                (log (str "REQUEST: " (doall request) "\nMessages in request:\n"))
-                (doseq [msg request]
-                  (log msg))
-                (log "Dispatching response:\n")
-                (let [response (dispatch request)]
-                  (send-message listener response))))
-            (when (mq/check-poller poller 0 :pollerr)
-              (throw (RuntimeException. "What should happen here?"))))
-          (finally
-            (mq/unregister poller listener))))
-      (finally
-        ;; Really need to set the ZMQ_LINGER option so
-        ;; this won't block if there are unsent messages in
-        ;; the queue.
-        ;; Or maybe not...see what happens.
-        (mq/close listener)))))
-
-
-(defn runner
-  "Set up the authenticator.
-ctx is the zmq context for the authenticator to listen on.
-done-reference is some sort of deref-able instance that will tell the thread to quit.
-This feels like an odd approach, but nothing more obvious springs to mind.
-This gets called by system/start. It needs system as a parameter to do
-its thing. Circular references are bad, mmkay?"
-  [ctx done-reference auth-port]
-  (log (str "Kicking off the authentication runner thread in context: "
-            ctx "\nwaiting on Done Reference " done-reference))
-  (.start (Thread. (fn []
-                     (authenticator ctx done-reference auth-port)))))
+                   ;; Now we're getting into something deeper...
+                   ;; really assumes that the server is maintaining some sort
+                   ;; of state with the connection.
+                   ;; Need to test that.
+                   ;; At a bare minimum, auth keys need to be passed around.
+                   ;; Better yet:
+                   ;; How does this work in the wild and whose previous art
+                   ;; can I use for a foundation?
+                   ;; This is commented out in the original...apparently I
+                   ;; wrote this and then decided that it's *way* too
+                   ;; ambitious for this version.
+                   (comment (expect 'wachu-wantz?
+                                    (req<->rep ['yarly "Really secure signature"])))
+                   (expect "RDYPLYR1"
+                           (req<->rep ['icanhaz? 'play]))))])
