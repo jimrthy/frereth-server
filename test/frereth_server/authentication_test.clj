@@ -1,4 +1,4 @@
-(ns frereth-server.test.authentication
+(ns frereth-server.authentication-test
   (:use expectations)
   (:require [frereth-server.authentication :as auth]
             ;; Do I have any actual use for util in this?
