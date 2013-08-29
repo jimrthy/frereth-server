@@ -1,4 +1,4 @@
-(ns frereth-server.expectations.auth-socket
+(ns frereth-server.test.auth-socket
   (:use expectations)
   (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]

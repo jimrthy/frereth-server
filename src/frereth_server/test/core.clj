@@ -1,4 +1,4 @@
-(ns frereth-server.expectations.core
+(ns frereth-server.test.core
   (:use expectations))
 
 ;; Stupidity test, if only to get started

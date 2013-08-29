@@ -1,4 +1,4 @@
-(ns frereth-server.expectations.util
+(ns frereth-server.test.util
   (:require [frereth-server.system :as sys]))
 
 (defn wrap [test]

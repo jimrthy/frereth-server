@@ -1,4 +1,4 @@
-(ns frereth-server.expectations.system
+(ns frereth-server.test.system
   (:use expectations)
   (:require [frereth-server.system :as sys]))
 
