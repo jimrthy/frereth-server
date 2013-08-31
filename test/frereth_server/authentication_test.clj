@@ -7,7 +7,11 @@
 ;;;; This initial version should be totally stateless.
 
 (defn isolated-expect
-  "Minimalist request-response, one message at a time."
+  "Minimalist request-response, one message at a time.
+If expect is really set up so that I can't use it in a function call
+like this...that makes it pretty much totally useless to me.
+Note that these tests have pretty much nothing to do with authentication.
+TODO: Move them to authorization testing."
   [req rep]
   (expect rep (#'auth/dispatch req)))
 

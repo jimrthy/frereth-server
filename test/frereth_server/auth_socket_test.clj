@@ -88,14 +88,14 @@ Then again, I guess this is saving a ton of duplicated code."
                               (req<->rep client login-sequence))))]
   (suite basic-login))
 
-(let [path-log (fn 
-                 "Pathological login mess.
+"Pathological login mess.
 Deliberately designed to be as ugly and painful as I can make it.
 I *want* to try to break the server here.
 Actually, I need lots and lots of these.
 And something that builds a million threads doing this sort of thing
 and throws them all at the server at once.
 Baby steps."
+(let [path-log (fn 
                  [world locals]
                  ;; Q: Why am I even thinking about subjecting myself to this?
                  ;; A: Because this is what unit tests are for.

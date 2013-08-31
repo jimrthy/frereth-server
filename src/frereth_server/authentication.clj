@@ -23,7 +23,9 @@ thought."
 
 (defmulti ^:private dispatch
   "Based on message, generate response.
-Do these make sense here?"
+Q: Do these make sense here?
+A: No. Absolutely not.
+The auth socket shouldn't be dealing with server management."
   dispatcher)
 
 (defmethod dispatch "dieDieDIE!!"
