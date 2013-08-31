@@ -1,5 +1,7 @@
 (ns frereth-server.auth-socket-test
-  (:use expectations)
+  (:use ;;expectations
+   midje.sweet
+   )
   (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
             [zeromq.zmq :as mq]

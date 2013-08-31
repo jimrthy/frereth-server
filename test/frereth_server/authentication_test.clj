@@ -1,19 +1,19 @@
 (ns frereth-server.authentication-test
-  (:use expectations)
+  (:use midje.sweet
+        clojure.test)
   (:require [frereth-server.authentication :as auth]
             ;; Do I have any actual use for util in this?
             [frereth-server.util-test :as util]))
 
 ;;;; This initial version should be totally stateless.
-
-(defn isolated-expect
-  "Minimalist request-response, one message at a time.
+ (defn isolated-expect
+   "Minimalist request-response, one message at a time.
 If expect is really set up so that I can't use it in a function call
 like this...that makes it pretty much totally useless to me.
 Note that these tests have pretty much nothing to do with authentication.
 TODO: Move them to authorization testing."
-  [req rep]
-  (expect rep (#'auth/dispatch req)))
+   [req rep]
+   (is (= rep (#'auth/dispatch req))))
 
 ;;; Except that the obvious next step is to make this stateful.
 ;;; Still want multiple tests, but that's about the complete
@@ -21,7 +21,12 @@ TODO: Move them to authorization testing."
 ;;; the way I want to now.
 ;;; These messages just flat-out do not make sense in isolation.
 
-
+(facts "basic authentication (not really)"
+       (fact "Basic greeting leads to challenge"
+             ;; Even if this weren't totally lame, I should be
+             ;; using keywords rather than symbols
+             (#'auth/dispatch 'ohai)
+             => 'oryl?))
 ;; Q: Why?
 ;; Most servers don't *need* any sort of auth. In general.
 ;; A: Yes, they do.
@@ -34,6 +39,8 @@ TODO: Move them to authorization testing."
 ;; the foundation.
 (isolated-expect 'ohai 'oryl?)
 
+;;; Gah!
+;;; On top of everything else, I reversed request/reply parameters below.
 ;; Server should totally reject this.
 (isolated-expect 'lolz 
                  (list 'icanhaz? 'me-speekz
