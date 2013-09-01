@@ -5,23 +5,14 @@
             ;; Do I have any actual use for util in this?
             [frereth-server.util-test :as util]))
 
-;;;; This initial version should be totally stateless.
-(comment (defn isolated-expect
-           "Minimalist request-response, one message at a time.
-If expect is really set up so that I can't use it in a function call
-like this...that makes it pretty much totally useless to me.
-Note that these tests have pretty much nothing to do with authentication.
-TODO: Move them to authorization testing."
-           [req rep]
-           (throw (RuntimeException. "Obsolete and broken"))
-           (is (= rep (#'auth/dispatch req)))))
-
-;;; Except that the obvious next step is to make this stateful.
-;;; Still want multiple tests, but that's about the complete
-;;; sequence, rather than validating each individual message
-;;; the way I want to now.
 ;;; These messages just flat-out do not make sense in isolation.
 
+;;; Q: How are midje tests actually broken up?
+;;; Can I set up a bunch of facts, interlace code, and declare facts
+;;; as needed?
+;;; That seems a whole lot more useful (and in-keeping with every
+;;; other unit testing framework on the planet) than the alternatives.
+;;; Or maybe I'm missing something really obvious.
 (facts "basic authentication (not really)"
        ;; This pretty much completely and totally belongs in authorization instead.
        (fact "Basic greeting leads to challenge"
@@ -40,7 +31,8 @@ TODO: Move them to authorization testing."
        (fact "Doomed handshake"
 ;; Server should totally reject this.
              (#'auth/dispatch (list 'icanhaz? {:me-speekz
-                                               [:blah [nil] :whatever [nil]]}))
+                                               [[:blah [nil]] 
+                                                [:whatever [nil]]]}))
              ;; Actually, the server should force us to completely and start over
              ;; from the beginning after that.
              => :lolz)
@@ -54,8 +46,10 @@ TODO: Move them to authorization testing."
              ;; Of course, anything realistic would have to specify what it
              ;; was requesting.
              (#'auth/dispatch (list 'icanhaz? {:me-speekz
-                                               [:frereth [0 0 1]]}))
-             => :oryl?)
+                                               {:blah [1 2 3]
+                                                :frereth [[0 0 1]
+                                                          [3 2 1]]}}))
+             => [:frereth [0 0 1]])
        (fact "Announcing identity"
              ;; Finally getting to something that resembles authentication
              (#'auth/dispatch (list 'ib "test"))

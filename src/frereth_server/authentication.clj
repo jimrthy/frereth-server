@@ -25,32 +25,81 @@ thought."
       ;; Or it could be a list of basic messages.
       ;; Should probably just throw out the 'looks like a function call'
       ;; list possibility...although accepting EDN makes sense.
-      (let [note "Now things start to get interesting. Trying to parse: "]
-        (throw (RuntimeException. (str note msg ))))
+      (if (list? msg)
+        (let [fn (first msg)]
+          (if (symbol? fn)
+            fn
+            ::multiple))
+        ::multiple)
       (throw (RuntimeException. "What are my other options?")))))
 
-(defmulti ^:private dispatch
+(defmulti dispatch
   "Based on message, generate response.
 Q: Do these make sense here?
 A: No. Absolutely not.
 The auth socket shouldn't be dealing with server management."
   dispatcher)
 
-(defmethod dispatch "dieDieDIE!!"
-  [_]
-  ;; Really just a placeholder message indicting that it's OK to quit
-  (throw (RuntimeException. "Totally misplaced!!")))
+(comment (defmethod dispatch "dieDieDIE!!"
+           [_]
+           ;; Really just a placeholder message indicting that it's OK to quit
+           (throw (RuntimeException. "Totally misplaced!!"))))
 
 (defmethod dispatch "ping"
   [_]
   "pong")
 
+(defmethod dispatch ::multiple
+  [msgs]
+  "Callers shouldn't see all the results. That would be a nasty security hole.
+Then again, the callers are really programs on the other end of a network that
+wound up here through at least a couple of layers. Allow them to decide how
+much of the actual results to share."
+  (map (fn [m] (dispatch m) msgs)))
+
 (defmethod dispatch :ohai
   [_]
   :oryl?)
 
+(defn known-protocol?
+  "Is this a protocol the server knows how to speak?
+FIXME: This isn't a setting to be buried somewhere in implementation
+details like this. Should really have a fully configurable set of
+dynamic plugins that make these easy to swap in and out at will.
+I'm starting as small as I can get away with."
+  [p]
+  (= p :frereth))
+
+(defmethod dispatch 'icanhaz?
+  [msg]
+  "Loop through the protocols the client claims to speak. Choose the best
+one this server also speaks. Return that, or :lolz if there are no matches.
+This is *screaming* to be broken out into multiple methods for simplification"
+  (let [headers (second msg)
+        protocols (:me-speekz headers)]
+    (if protocols
+      ;; Expect protocals to be a map.
+      (let [ps (filter known-protocol? (keys protocols))
+            rankings (map (fn [p]
+                            (if (seq? (protocols p))
+                              (reduce (fn [pair previous]
+                                        (let [score1 (second pair)
+                                              score2 (second previous)]
+                                          (if (> score1 score2)
+                                            pair
+                                            previous))))))
+                          ps)]
+        ;; This is buggy and wrong.
+        ;; Really need to flatten the tree of potential protocols,
+        ;; pick the best one, and go with it.
+        ;; Or, at the very least, pick the "best" version of each
+        ;; known protocol and then sort them.
+        ;; TODO: Don't be stupid about this.
+        (first rankings))
+      :lolz)))
+
 (defmethod dispatch :default
   [echo]
-  echo)
+  (throw (RuntimeException. (str "Illegal request: " echo))))
 
 
