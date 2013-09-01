@@ -6,14 +6,15 @@
             [frereth-server.util-test :as util]))
 
 ;;;; This initial version should be totally stateless.
- (defn isolated-expect
-   "Minimalist request-response, one message at a time.
+(comment (defn isolated-expect
+           "Minimalist request-response, one message at a time.
 If expect is really set up so that I can't use it in a function call
 like this...that makes it pretty much totally useless to me.
 Note that these tests have pretty much nothing to do with authentication.
 TODO: Move them to authorization testing."
-   [req rep]
-   (is (= rep (#'auth/dispatch req))))
+           [req rep]
+           (throw (RuntimeException. "Obsolete and broken"))
+           (is (= rep (#'auth/dispatch req)))))
 
 ;;; Except that the obvious next step is to make this stateful.
 ;;; Still want multiple tests, but that's about the complete
@@ -22,11 +23,8 @@ TODO: Move them to authorization testing."
 ;;; These messages just flat-out do not make sense in isolation.
 
 (facts "basic authentication (not really)"
+       ;; This pretty much completely and totally belongs in authorization instead.
        (fact "Basic greeting leads to challenge"
-             ;; Even if this weren't totally lame, I should be
-             ;; using keywords rather than symbols
-             (#'auth/dispatch 'ohai)
-             => 'oryl?))
 ;; Q: Why?
 ;; Most servers don't *need* any sort of auth. In general.
 ;; A: Yes, they do.
@@ -37,28 +35,36 @@ TODO: Move them to authorization testing."
 ;; out of their way to totally ignore identity, while still
 ;; respecting privacy. It's vital to build this sort of thing into
 ;; the foundation.
-(isolated-expect 'ohai 'oryl?)
-
-;;; Gah!
-;;; On top of everything else, I reversed request/reply parameters below.
+             (#'auth/dispatch :ohai)
+             => :oryl?)
+       (fact "Doomed handshake"
 ;; Server should totally reject this.
-(isolated-expect 'lolz 
-                 (list 'icanhaz? 'me-speekz
-                       [:blah nil :whatever nil]))
+             (#'auth/dispatch (list 'icanhaz? {:me-speekz
+                                               [:blah [nil] :whatever [nil]]}))
+             ;; Actually, the server should force us to completely and start over
+             ;; from the beginning after that.
+             => :lolz)
+       ;; This next sequence totally fails under anything resembling real auth/auth.
+       ;; Then again, I'd be out of my mind to try to write that myself.
+       ;; So just leave what I have as totally stateless for now.
+       (fact "Reasonable handshake"
+             ;; This seems like a reasonable handshake that ought to be
+             ;; allowed to proceed. It's requesting something and announcing
+             ;; a realistic hypothetical protocol.
+             ;; Of course, anything realistic would have to specify what it
+             ;; was requesting.
+             (#'auth/dispatch (list 'icanhaz? {:me-speekz
+                                               [:frereth [0 0 1]]}))
+             => :oryl?)
+       (fact "Announcing identity"
+             ;; Finally getting to something that resembles authentication
+             (#'auth/dispatch (list 'ib "test"))
+             => :oryl?)
+       (fact (list 'yarly  "Really secure signature")
+             => :wachu-wantz?)
+       (fact (list 'icanhaz? :play)
+             => "RDYPLYR1"))
 
-;; I should get the previous tests working before I try something
-;; ambitious like this.
-(isolated-expect 'oryl?
-                 (list 'icanhaz? 'me-speekz
-                       [:frereth [0 0 1]]))
 
-(isolated-expect 'oryl?
-                 (list 'ib 'test))
-
-(isolated-expect 'wachu-wantz?
-                 (list 'yarly "Really secure signature"))
-
-(isolated-expect "RDYPLYR1"
-                 ['icanz? 'play])
 
 
