@@ -1,8 +1,8 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
-   [zeromq.zmq :as mq]
-   [zguide.zhelpers :as mqh]
+   ;;[zeromq.zmq :as mq]
+   [zguide.zhelpers :as mq]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]))
 
@@ -39,7 +39,7 @@
     ;; as long as the system threads are alive the VM
     ;; should keep going.
     (println "Listening on " thread-count " thread connections")
-    (mqh/with-context [context thread-count]
+    (mq/with-context [context thread-count]
       (do
         (with-open [master-socket (-> context
                                       (mq/socket :dealer)

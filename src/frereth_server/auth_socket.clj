@@ -1,6 +1,6 @@
 (ns frereth-server.auth-socket
-  (:require [zguide.zhelpers :as mqh]
-            [zeromq.zmq :as mq]
+  (:require [zguide.zhelpers :as mq]
+            ;;[zeromq.zmq :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
             )
@@ -110,7 +110,7 @@ Oops. Backwards parameters."
       ;; Probably.
       (log (format "Sending: %s" msgs))
       (log (format "\nto\n%s\n" s))
-      (mqh/send-all s msgs))))
+      (mq/send-all s msgs))))
 
 
 (defn- authenticator

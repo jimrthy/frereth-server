@@ -125,7 +125,7 @@ and start it running. Returns an updated instance of the system."
         ;; approach:
         ;; It doesn't.
         ;; Worry about it some other time.
-        client-socket (mq/socket context :pub)]
+        client-socket (mq/socket context :dealer)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
@@ -208,7 +208,7 @@ or auth-socket."
        (if-let [ctx @(:network-context universe)]
          (do
            (when (< 0 retries)
-             (mqh/with-socket [auth-killer ctx :req]
+             (mq/with-socket [auth-killer ctx :req]
                (println "There are " retries 
                         " attempts left to be rid of ports")
                
@@ -218,7 +218,7 @@ or auth-socket."
                ;; send is async, right? There isn't any point
                ;; to specifying NOBLOCK here,
                ;; is there?
-               (mqh/send auth-killer "dieDieDIE!!")
+               (mq/send auth-killer "dieDieDIE!!")
                (println "Death sentence sent")
 
                ;; If the other side's alive, it really should 
