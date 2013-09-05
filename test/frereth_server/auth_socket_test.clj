@@ -2,14 +2,16 @@
   (:use midje.sweet)
   (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
-            [zeromq.zmq :as mq]
-            [zguide.zhelpers :as mqh]))
+            ;;[zeromq.zmq :as mq]
+            [zguide.zhelpers :as mq]))
 
 (defn setup
-  "Because I need a socket to send these requests from"
+  "Because I need a socket to send these requests from.
+Although this particular idea is half-baked and needs to move
+*way* down my priority list."
   [world]
   (let [ctx @(world :network-context)
-        s (mq/socket @ctx (:req mq/socket-types))
+        s (mq/socket @ctx (:req (mq/const :socket-types)))
         address (format "tcp://127.0.0.1:%d" (:auth (:ports world)))]
     (mq/connect s address)
     {:socket s}))
@@ -25,7 +27,9 @@ but I don't see it anywhere"
 and util will finish.
 Whew! I'm more than a little amazed that I still don't have any use for a macro.
 I'm more than a little leery that my unit tests are needing to be so fancy.
-Then again, I guess this is saving a ton of duplicated code."
+Then again, I guess this is saving a ton of duplicated code.
+
+This *so* does not belong in here."
   [f]
   (let [local (fn [world]
                 (let [locals (setup world)]
@@ -36,21 +40,23 @@ Then again, I guess this is saving a ton of duplicated code."
 (defn req<->rep
   "Send a request to the authentication socket's auth port, return its response"
   [r s]
-  (mqh/send s r)
-  (mq/receive-str s))
+  (mq/send s r)
+  (mq/recv-str s))
 
 ;; I don't particularly feel happy about using strings like this...
 ;; I feel like I should really be doing this with symbols, or
 ;; possibly keywords
 (let [kill (fn [world locals]
              (reset! (:done @world) true)
-             (mqh/send "ping") ; Shouldn't matter what goes here
+             ;; TODO: But we do need a socket to send it to!
+             (mq/send "ping") ; Shouldn't matter what goes here
              (Thread/sleep 50) ; Should be plenty of time for it to shut down
-             (let [auth-thread (:authentication-thread world)]
-               ;; Nothing like expect is legal here
-               (comment (expect false (.isAlive auth-thread)))
-               (when (.isAlive auth-thread)
-                 (throw (RuntimeException. "Listener thread still alive")))))]
+
+             (fact "Should be done"
+                   (let [auth-thread (:authentication-thread world)]
+                     (.isAlive auth-thread) => false
+                     (when (.isAlive auth-thread)
+                       (throw (RuntimeException. "Listener thread still alive"))))))]
   ;; Wow. This seems either really sweet or really sick.
   ;; Worry about it later...this is really just clearing a path so
   ;; I can move forward with something that resembles real work.

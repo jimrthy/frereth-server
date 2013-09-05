@@ -5,9 +5,11 @@
 ;; Q: Why?
 ;; A: Because the most restrictive license on which it
 ;; depends is currently zeromq.zmq, and that's its license.
-;; I'm strongly inclined to GPL this, since I think it adds
-;; pieces that offer real value so aren't worth LGPL'ing.
-;; Get it while it's hot, ladies and gentlemen.
+;; This probably isn't strictly required, and it gets finicky
+;; when it comes to the EPL...I am going to have to get an
+;; opinion from the FSF (and probably double-check with
+;; the 0mq people) to verify how this actually works in 
+;; practice.
 
 (ns zguide.zhelpers
   (:refer-clojure :exclude [send])
@@ -26,52 +28,55 @@
      (try ~@body
           (finally (.term ~id)))))
 
+;; TODO: Break this up into socket types and "others."
+;; Probably worth partitioning the "others" as well.
 (def const {
-            ;; Non-blocking send/recv
-            :no-block ZMQ/NOBLOCK
-            :dont-wait ZMQ/DONTWAIT
+            :control {
+                      ;; Non-blocking send/recv
+                      :no-block ZMQ/NOBLOCK
+                      :dont-wait ZMQ/DONTWAIT
 
-            ;; More message parts are coming
-            :sndmore ZMQ/SNDMORE
-            :send-more ZMQ/SNDMORE
-
-            ;;; Socket types
-
-            ;; Request/Reply
-            :req ZMQ/REQ
-            :rep ZMQ/REP
-
-            ;; Publish/Subscribe
-            :pub ZMQ/PUB
-            :sub ZMQ/SUB
-
-            ;; Extended Publish/Subscribe
-            :x-pub ZMQ/XPUB
-            :x-sub ZMQ/XSUB
-            ;; Push/Pull
+                      ;; More message parts are coming
+                      :sndmore ZMQ/SNDMORE
+                      :send-more ZMQ/SNDMORE}
             
-            :push ZMQ/PUSH
-            :pull ZMQ/PULL
+            ;;; Socket types
+            :socket-type {
+                          ;; Request/Reply
+                          :req ZMQ/REQ
+                          :rep ZMQ/REP
 
-            ;; Internal 1:1
-            :pair ZMQ/PAIR
+                          ;; Publish/Subscribe
+                          :pub ZMQ/PUB
+                          :sub ZMQ/SUB
 
-            ;; Router/Dealer
+                          ;; Extended Publish/Subscribe
+                          :x-pub ZMQ/XPUB
+                          :x-sub ZMQ/XSUB
+                          ;; Push/Pull
+                          
+                          :push ZMQ/PUSH
+                          :pull ZMQ/PULL
 
-            ;; Creates/consumes request-reply routing envelopes.
-            ;; Lets you route messages to specific connections if you
-            ;; know their identities.
-            :router ZMQ/ROUTER
+                          ;; Internal 1:1
+                          :pair ZMQ/PAIR
 
-            ;; Combined ventilator/sink.
-            ;; Does load balancing on output and fair-queuing on input.
-            ;; Can shuffle messages out to N nodes then shuffle the replies back.
-            ;; Raw bidirectional async pattern.
-            :dealer ZMQ/DEALER
+                          ;; Router/Dealer
 
-            ;; Obsolete names for Router/Dealer
-            :xreq ZMQ/XREQ
-            :xrep ZMQ/XREP})
+                          ;; Creates/consumes request-reply routing envelopes.
+                          ;; Lets you route messages to specific connections if you
+                          ;; know their identities.
+                          :router ZMQ/ROUTER
+
+                          ;; Combined ventilator/sink.
+                          ;; Does load balancing on output and fair-queuing on input.
+                          ;; Can shuffle messages out to N nodes then shuffle the replies back.
+                          ;; Raw bidirectional async pattern.
+                          :dealer ZMQ/DEALER
+
+                          ;; Obsolete names for Router/Dealer
+                          :xreq ZMQ/XREQ
+                          :xrep ZMQ/XREP}})
 
 (defn socket
   [#^ZMQ$Context context type]
