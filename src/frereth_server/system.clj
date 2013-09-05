@@ -1,8 +1,9 @@
 (ns frereth-server.system
   (:gen-class)
   (:require [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mqh]
-            [zeromq.zmq :as mq])
+            [zguide.zhelpers :as mq]
+            ;;[zeromq.zmq :as mq]
+            )
   (:gen-class))
 
 (defn init
@@ -81,11 +82,7 @@ and start it running. Returns an updated instance of the system."
         
         ;; Connection to localhost for Ultimate Power...
         ;; this should, honestly, be something like NREPL
-        ;; REP is absolutely the wrong type of socket, though.
-        ;; Check RRR patterns. At the very least, change
-        ;; it to a Dealer.
-        ;; FIXME: Make it so.
-        master-socket (mq/socket context :rep)
+        master-socket (mq/socket context :dealer)
 
         ;; Where does the actual action happen?
         ;; Note that this is the connection that, say, sys-ops should use
@@ -223,20 +220,16 @@ or auth-socket."
 
                ;; If the other side's alive, it really should 
                ;; ACK pretty much immediately.
-               ;; This is the second time I've needed
-               ;; this sort of boiler plate.
-               ;; FIXME: Use with-poller instead
-               (let [poller (mq/poller ctx)]
-                 (mq/register poller auth-killer :pollin :pollerr)
+               (mq/with-poller final-countdown ctx auth-killer
                  ;; The 0 indicates that we're checking the first 
                  ;; [and only]
                  ;; poller. Really need some sort of timeout option. 
                  ;; I think.
                  ;; Compare with auth-socket.
-                 (if (mq/check-poller poller 0 :pollerr)
+                 (if (mq/check-poller final-countdown 0 :pollerr)
                    (throw (RuntimeException.
                            "AUTH socket error! Be smarter"))
-                   (when-not (mq/check-poller poller 0 :pollin)
+                   (when-not (mq/check-poller final-countdown 0 :pollin)
                      ;; This is lame...but I have to start somewhere.
                      ;; If the sockets are all tied up doing something
                      ;; else, this much delay

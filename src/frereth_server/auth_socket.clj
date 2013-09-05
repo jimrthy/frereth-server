@@ -19,7 +19,7 @@ thinking about crap like this in issues."
     (.write w "\n")))
 
 (defn- read-message [s]
-  (mqh/recv-all-str s))
+  (mq/recv-all-str s))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -156,9 +156,7 @@ assignment and don't surrender to laziness."
       ;; FIXME: What should this actually be listening on?
       (mq/bind listener (format "tcp://*:%d" auth-port))
 
-      ;; FIXME: Rewrite this using with-poller.
-      (let [poller (mq/poller ctx)]
-        (mq/register poller listener :pollin :pollerr)
+      (mq/with-poller authenticator ctx listener
         (try
           (while (not @done-reference)
             ;; FIXME: I really don't want to do busy polling here.
@@ -176,7 +174,7 @@ assignment and don't surrender to laziness."
 
             ;; poll for a request.
             ;; Do I need to specify a timeout?
-            (mq/poll poller)
+            (mq/poll authenticator)
 
             ;; That means that system/stop needs to send a "die" message
             ;; to this port.
@@ -193,7 +191,7 @@ assignment and don't surrender to laziness."
             ;; For other message types, work through a login sequence.
             ;; Possibly present a potential client with details about
             ;; what to do/where to go next.
-            (when (mq/check-poller poller 0 :pollin)
+            (when (mq/check-poller authenticator 0 :pollin)
               (let [request (read-message listener)]
                 ;; I can see request being a lazy sequence.
                 ;; But (doall ...) is documented to realize the entire sequence.
@@ -204,10 +202,8 @@ assignment and don't surrender to laziness."
                 (log "Dispatching response:\n")
                 (let [response (dispatch request)]
                   (send-message listener response))))
-            (when (mq/check-poller poller 0 :pollerr)
-              (throw (RuntimeException. "What should happen here?"))))
-          (finally
-            (mq/unregister poller listener))))
+            (when (mq/check-poller authenticator 0 :pollerr)
+              (throw (RuntimeException. "What should happen here?"))))))
       (finally
         ;; Really need to set the ZMQ_LINGER option so
         ;; this won't block if there are unsent messages in

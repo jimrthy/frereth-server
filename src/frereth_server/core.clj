@@ -45,6 +45,6 @@
                                       (mq/socket :dealer)
                                       (mq/bind (str "tcp://127.0.0.1:" master-port)))]
           ;; Let's start with ECHO
-          (let [pull (future (mq/receive master-socket))]
+          (let [pull (future (mq/recv master-socket))]
             (let [msg @pull]
               (mq/send master-socket msg))))))))

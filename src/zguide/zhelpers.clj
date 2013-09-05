@@ -30,63 +30,73 @@
 
 ;; TODO: Break this up into socket types and "others."
 ;; Probably worth partitioning the "others" as well.
-(def const {
-            :control {
-                      ;; Non-blocking send/recv
-                      :no-block ZMQ/NOBLOCK
-                      :dont-wait ZMQ/DONTWAIT
-
-                      ;; More message parts are coming
-                      :sndmore ZMQ/SNDMORE
-                      :send-more ZMQ/SNDMORE}
+;; How can I make accessing these friendlier?
+(def ^:private const {
+                      :control {
+                                ;; Non-blocking send/recv
+                                :no-block ZMQ/NOBLOCK
+                                :dont-wait ZMQ/DONTWAIT
+                                
+                                ;; More message parts are coming
+                                :sndmore ZMQ/SNDMORE
+                                :send-more ZMQ/SNDMORE}
             
             ;;; Socket types
-            :socket-type {
-                          ;; Request/Reply
-                          :req ZMQ/REQ
-                          :rep ZMQ/REP
+                      :socket-type {
+                                    ;; Request/Reply
+                                    :req ZMQ/REQ
+                                    :rep ZMQ/REP
+                                    
+                                    ;; Publish/Subscribe
+                                    :pub ZMQ/PUB
+                                    :sub ZMQ/SUB
 
-                          ;; Publish/Subscribe
-                          :pub ZMQ/PUB
-                          :sub ZMQ/SUB
-
-                          ;; Extended Publish/Subscribe
-                          :x-pub ZMQ/XPUB
-                          :x-sub ZMQ/XSUB
-                          ;; Push/Pull
+                                    ;; Extended Publish/Subscribe
+                                    :x-pub ZMQ/XPUB
+                                    :x-sub ZMQ/XSUB
+                                    ;; Push/Pull
                           
-                          :push ZMQ/PUSH
-                          :pull ZMQ/PULL
+                                    :push ZMQ/PUSH
+                                    :pull ZMQ/PULL
 
-                          ;; Internal 1:1
-                          :pair ZMQ/PAIR
+                                    ;; Internal 1:1
+                                    :pair ZMQ/PAIR
 
-                          ;; Router/Dealer
+                                    ;; Router/Dealer
 
-                          ;; Creates/consumes request-reply routing envelopes.
-                          ;; Lets you route messages to specific connections if you
-                          ;; know their identities.
-                          :router ZMQ/ROUTER
+                                    ;; Creates/consumes request-reply routing envelopes.
+                                    ;; Lets you route messages to specific connections if you
+                                    ;; know their identities.
+                                    :router ZMQ/ROUTER
+                                    
+                                    ;; Combined ventilator/sink.
+                                    ;; Does load balancing on output and fair-queuing on input.
+                                    ;; Can shuffle messages out to N nodes then shuffle the replies back.
+                                    ;; Raw bidirectional async pattern.
+                                    :dealer ZMQ/DEALER
+                                    
+                                    ;; Obsolete names for Router/Dealer
+                                    :xreq ZMQ/XREQ
+                                    :xrep ZMQ/XREP}})
 
-                          ;; Combined ventilator/sink.
-                          ;; Does load balancing on output and fair-queuing on input.
-                          ;; Can shuffle messages out to N nodes then shuffle the replies back.
-                          ;; Raw bidirectional async pattern.
-                          :dealer ZMQ/DEALER
-
-                          ;; Obsolete names for Router/Dealer
-                          :xreq ZMQ/XREQ
-                          :xrep ZMQ/XREP}})
+(defn sock->c 
+  "Convert a keyword to a ZMQ constant"
+  [key]
+  ((const :socket-type) key))
 
 (defn socket
   [#^ZMQ$Context context type]
-  (.socket context type))
+  (let [real-type (sock->c type)]
+    (.socket context real-type)))
 
 (defmacro with-socket [[name context type] & body]
   `(let [~name (socket ~context ~type)]
      (try ~@body
           (finally (.close ~name)))))
 
+;; FIXME: clojure.tools.macro!
+;; At the very least, poller-name needs to be inside a vector.
+;; context and socket...they're annoying.
 (defmacro with-poller [poller-name context socket & body]
   "Cut down on some of the boilerplate around pollers.
 What's left still seems pretty annoying."
@@ -234,6 +244,28 @@ There doesn't seem any good reason to put effort into hiding it."
 
 (def poll-in ZMQ$Poller/POLLIN)
 (def poll-out ZMQ$Poller/POLLOUT)
+
+(defn poll
+  "FIXME: This is just a wrapper around the base handler.
+It feels dumb and more than a little pointless. Aside from the
+fact that I think it's wrong.
+At this point, I just want to get pieces to compile so I can
+call it a night...
+what does that say about the dynamic/static debate?"
+  [poller]
+  (mq/poll poller))
+
+(defn check-poller 
+  "This sort of new-fangledness is why I started this library in the
+first place. It's missing the point more than a little if it's already
+in the default language binding." 
+  [poller time-out & keys]
+  (mq/check-poller poller time-out keys))
+
+(defn close 
+  "Yeah, this seems more than a little stupid"
+  [sock]
+  (.close sock))
 
 (defn register-in
   "Register a listening socket to poll on." 
