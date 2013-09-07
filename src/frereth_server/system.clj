@@ -1,9 +1,7 @@
 (ns frereth-server.system
   (:gen-class)
   (:require [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mq]
-            ;;[zeromq.zmq :as mq]
-            )
+            [zguide.zhelpers :as mq])
   (:gen-class))
 
 (defn init
@@ -23,6 +21,7 @@ I really need to figure out what I want to do here."
    ;; be load-balanced, or some such.
    ;; Of course, that's really a bad reason for it to 
    ;; exist now.
+   ;; YAGNI.
    :broker (atom nil)
 
    ;; Signal everything that we're finished.
@@ -64,6 +63,11 @@ and start it running. Returns an updated instance of the system."
         ;; FIXME: Load this from configuration.
         ;; For that matter, really should be able to tweak it at runtime.
         ;; That strongly goes against 0mq's grain, but it's doable.
+        ;; Q: Doesn't that mean killing the networking context and
+        ;; rebuilding it from scratch?
+        ;; Assuming it does, that basically means enabling bits and pieces
+        ;; of stop/start so it can be called selectively.
+        ;; Which, honestly, needs to happen anyway.
 
         ;;context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
         context (mq/context 1)
@@ -77,7 +81,8 @@ and start it running. Returns an updated instance of the system."
         ;; I'm torn about whether it's a good idea or not...
         ;; honestly, its existence should be configurable
         ;; (and default to off!)
-        ;;master-port config/master-port
+        ;; Although I can definitely see the value to having
+        ;; nrepl listen on here.
         master-port (:master ports)
         
         ;; Connection to localhost for Ultimate Power...
@@ -111,23 +116,23 @@ and start it running. Returns an updated instance of the system."
         ;;client-sockets (mq/socket context mq/dealer)
         auth-thread (auth/runner context done auth-port)
 
-        ;; Umm...No. This should not be a publisher.
-        ;; Except that it makes sense.
-        ;; Stream out state updates over this.
-        ;; Deal with "real" client requests over RRR.
-        ;; Except that it totally does not make sense:
-        ;; different clients will receive different messages
-        ;; based on their state (e.g. location).
-        ;; Here's a major issue with the one-size-fits-all
-        ;; approach:
-        ;; It doesn't.
-        ;; Worry about it some other time.
+        ;; Here's the problem with the one-size-fits-all
+        ;; approach: it doesn't.
+        ;; An approach that makes sense here for a personal localhost
+        ;; is pretty drastically different than the client sockets
+        ;; needed for an MMORPG.
+        ;; It seems like the interface should look the same in
+        ;; theory...but there's always that damnable part about
+        ;; the practice.
         client-socket (mq/socket context :dealer)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
-    ;; Note that, on unix, we have to set up the named pipe.
+    ;; Note that, on unix, we have to set up the named pipe for that.
     ;; FIXME: Should probably plan on using that, if it's available.
+    ;; For that matter...can I get any measurable performance boost
+    ;; using inproc?
+    ;; What about pair?
     ;; For now, it qualifies as premature optimization.
     (let [master-address (format "tcp://127.0.0.1:%d" master-port)]
       (try
