@@ -1,7 +1,9 @@
 (ns frereth-server.system
   (:gen-class)
-  (:require [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mq])
+  (:require 
+   [clojure.tools.logging :as log]
+   [frereth-server.auth-socket :as auth]
+   [zguide.zhelpers :as mq])
   (:gen-class))
 
 (defn init
@@ -139,7 +141,7 @@ and start it running. Returns an updated instance of the system."
         (mq/bind master-socket master-address)
         (catch Exception e
           ;; FIXME: Switch to something that resembles real logging.
-          (do (println "Failed to bind " master-socket " to " master-address)
+          (do (log/error "Failed to bind " master-socket " to " master-address)
               (throw)))))
 
     ;; Want to be pickier about who can connect. Or, at least,
@@ -211,7 +213,7 @@ or auth-socket."
          (do
            (when (< 0 retries)
              (mq/with-socket [auth-killer ctx :req]
-               (println "There are " retries 
+               (log/info "There are " retries 
                         " attempts left to be rid of ports")
                
                ;; Now we can start killing off the interesting shit
@@ -221,7 +223,7 @@ or auth-socket."
                ;; to specifying NOBLOCK here,
                ;; is there?
                (mq/send auth-killer "dieDieDIE!!")
-               (println "Death sentence sent")
+               (log/trace "Death sentence sent")
 
                ;; If the other side's alive, it really should 
                ;; ACK pretty much immediately.
@@ -242,40 +244,40 @@ or auth-socket."
                      ;; Of course, magic numbers like this are evil!
                      (Thread/sleep 75)
                      (kill-authenticator universe (dec retries))))))))
-         (println "No networking context...WTF?")))
-     (println "Authentication thread gone")))
+         (log/error "No networking context...WTF?")))
+     (log/info "Authentication thread gone")))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
 resources. Returns an updated instance of the system, ready to re-start."
   [universe]
   (when universe
-    (println "Have a universe to kill")
+    (log/trace "Have a universe to kill")
     ;; Signal to other threads that pieces are finished
     (swap! (:done universe) (constantly true))
 
     ;; Realistically, need to wait for them to finish up.
     (when-let [ctx @(:network-context universe)]
-      (println "Have a context to shut down")
+      (log/trace "Have a context to shut down")
       (try
         ;;(kill-authenticator universe)
-        ;;(println "Authenticator killer didn't throw")
+        ;;(log/info "Authenticator killer didn't throw")
         (let [done (:done universe)]
           (when (not @done)
             (swap! done false)
             (let [auth-thread @(:authentication-thread universe)]
               (.join auth-thread 500)
-              (println "Authentication thread has exited"))))
+              (log/trace "Authentication thread has exited"))))
         (catch InterruptedException e
           (str "Exception waiting for authentication thread to exit: "
                (.getMessage e)))
         (finally
           (when-let [sock @(:clients universe)]
             (.close sock))
-          (println "Client thread closed")
+          (log/trace "Client thread closed")
           (when-let [sock @(:master-connection universe)]
             (.close sock))
-          (println "Master connection closed")
+          (log/trace "Master connection closed")
           ;; ...and we're hanging here.
           ;; This is built-in 0mq behavior. Especially
           ;; at startup, when I'm sending several "kill"
@@ -286,6 +288,6 @@ resources. Returns an updated instance of the system, ready to re-start."
           ;; FIXME: How do I force it to accept failure?
           ;;(throw (RuntimeException. "Start here"))
           (.term ctx)))))
-  (println "Universe destroyed.")
+  (log/info "Universe destroyed.")
   ;; Just return a completely fresh instance.
   (init))

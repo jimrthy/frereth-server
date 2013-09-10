@@ -1,6 +1,7 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
+   [clojure.tools.logging :as log]
    ;;[zeromq.zmq :as mq]
    [zguide.zhelpers :as mq]
    [frereth-server.config :as config]
@@ -38,7 +39,7 @@
     ;; This should probably just go ahead and exit...
     ;; as long as the system threads are alive the VM
     ;; should keep going.
-    (println "Listening on " thread-count " thread connections")
+    (log/trace "Listening on " thread-count " thread connections")
     (mq/with-context [context thread-count]
       (do
         (with-open [master-socket (-> context
