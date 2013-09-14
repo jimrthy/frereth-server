@@ -1,8 +1,9 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
-   [zeromq.zmq :as mq]
-   [zguide.zhelpers :as mqh]
+   [clojure.tools.logging :as log]
+   ;;[zeromq.zmq :as mq]
+   [zguide.zhelpers :as mq]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]))
 
@@ -38,13 +39,13 @@
     ;; This should probably just go ahead and exit...
     ;; as long as the system threads are alive the VM
     ;; should keep going.
-    (println "Listening on " thread-count " thread connections")
-    (mqh/with-context [context thread-count]
+    (log/trace "Listening on " thread-count " thread connections")
+    (mq/with-context [context thread-count]
       (do
         (with-open [master-socket (-> context
                                       (mq/socket :dealer)
                                       (mq/bind (str "tcp://127.0.0.1:" master-port)))]
           ;; Let's start with ECHO
-          (let [pull (future (mq/receive master-socket))]
+          (let [pull (future (mq/recv master-socket))]
             (let [msg @pull]
               (mq/send master-socket msg))))))))

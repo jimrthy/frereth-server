@@ -1,7 +1,9 @@
 (ns frereth-server.system
-  (:require [frereth-server.auth-socket :as auth]
-            [zguide.zhelpers :as mqh]
-            [zeromq.zmq :as mq])
+  (:require 
+   [clojure.tools.logging :as log]
+   [frereth-server.auth-socket :as auth]
+   [frereth-server.user :as user]
+   [zguide.zhelpers :as mq])
   (:gen-class))
 
 (defn init
@@ -21,6 +23,10 @@ I really need to figure out what I want to do here."
    ;; be load-balanced, or some such.
    ;; Of course, that's really a bad reason for it to 
    ;; exist now.
+   ;; YAGNI.
+   ;; Q: What on earth did I have planned for this?
+   ;; A: My best guess is something along the lines of
+   ;; majordomo.
    :broker (atom nil)
 
    ;; Signal everything that we're finished.
@@ -34,24 +40,33 @@ I really need to figure out what I want to do here."
    ;; FIXME: Seriously, though. These don't belong here.
    :ports {:client 7843
            :master 7842
-           :auth 7841}})
+           :auth 7841}
+
+   :users (atom nil)})
 
 (defn start
   "Performs side effects to initialize the system, acquire resources,
 and start it running. Returns an updated instance of the system."
   [universe]
-  ;; Some combination of doto and -> (->> ?) seems appropriate here
-  (assert (not @(:network-context universe)))
-  (assert (not @(:master-connection universe)))
-  ;; Q: What on earth did I have planned for this?
-  ;; A: My best guess is something along the lines of
-  ;; majordomo.
-  (assert (not @(:broker universe)))
-  (assert (not @(:done universe)))
+  (letfn [(verify-dead [k]
+            ;; This is causing a NPE, presumably because I'm trying
+            ;; to deref nil atoms. 
+            ;; FIXME: So how should this be done?
+            (assert (nil? @(k universe))))]
+    (dorun (map verify-dead 
+                [:network-context :master-connection :broker :done :users])))
+
+  (swap! (:users universe)
+         user/start)
 
   ;; FIXME: Be paranoid and protect everything here!
-  (let [;; Let's be explicit about this:
+  ;; (I assume I meant with something like try/finally
+  (let [
+        ;; Let's be explicit about this:
         done (atom false)
+        
+        ;; TODO: The rest of this belongs in its own function.
+        ;; For that matter, the result really belongs in its own 
 
         ;; Actual networking context
         ;; Q: How many threads should I dedicate to the networking context?
@@ -62,6 +77,11 @@ and start it running. Returns an updated instance of the system."
         ;; FIXME: Load this from configuration.
         ;; For that matter, really should be able to tweak it at runtime.
         ;; That strongly goes against 0mq's grain, but it's doable.
+        ;; Q: Doesn't that mean killing the networking context and
+        ;; rebuilding it from scratch?
+        ;; Assuming it does, that basically means enabling bits and pieces
+        ;; of stop/start so it can be called selectively.
+        ;; Which, honestly, needs to happen anyway.
 
         ;;context (mq/context (- (.availableProcessors (Runtime/getRuntime)) 1))
         context (mq/context 1)
@@ -75,16 +95,13 @@ and start it running. Returns an updated instance of the system."
         ;; I'm torn about whether it's a good idea or not...
         ;; honestly, its existence should be configurable
         ;; (and default to off!)
-        ;;master-port config/master-port
+        ;; Although I can definitely see the value to having
+        ;; nrepl listen on here.
         master-port (:master ports)
         
         ;; Connection to localhost for Ultimate Power...
         ;; this should, honestly, be something like NREPL
-        ;; REP is absolutely the wrong type of socket, though.
-        ;; Check RRR patterns. At the very least, change
-        ;; it to a Dealer.
-        ;; FIXME: Make it so.
-        master-socket (mq/socket context :rep)
+        master-socket (mq/socket context :dealer)
 
         ;; Where does the actual action happen?
         ;; Note that this is the connection that, say, sys-ops should use
@@ -113,30 +130,30 @@ and start it running. Returns an updated instance of the system."
         ;;client-sockets (mq/socket context mq/dealer)
         auth-thread (auth/runner context done auth-port)
 
-        ;; Umm...No. This should not be a publisher.
-        ;; Except that it makes sense.
-        ;; Stream out state updates over this.
-        ;; Deal with "real" client requests over RRR.
-        ;; Except that it totally does not make sense:
-        ;; different clients will receive different messages
-        ;; based on their state (e.g. location).
-        ;; Here's a major issue with the one-size-fits-all
-        ;; approach:
-        ;; It doesn't.
-        ;; Worry about it some other time.
-        client-socket (mq/socket context :pub)]
+        ;; Here's the problem with the one-size-fits-all
+        ;; approach: it doesn't.
+        ;; An approach that makes sense here for a personal localhost
+        ;; is pretty drastically different than the client sockets
+        ;; needed for an MMORPG.
+        ;; It seems like the interface should look the same in
+        ;; theory...but there's always that damnable part about
+        ;; the practice.
+        client-socket (mq/socket context :dealer)]
     ;; Using JNI, I can use shared memory sockets, can't I?
     ;;(mq/bind master-socket (format "ipc://127.0.0.1:%d" master-port))
     ;; Doesn't work on windows.
-    ;; Note that, on unix, we have to set up the named pipe.
+    ;; Note that, on unix, we have to set up the named pipe for that.
     ;; FIXME: Should probably plan on using that, if it's available.
+    ;; For that matter...can I get any measurable performance boost
+    ;; using inproc?
+    ;; What about pair?
     ;; For now, it qualifies as premature optimization.
     (let [master-address (format "tcp://127.0.0.1:%d" master-port)]
       (try
         (mq/bind master-socket master-address)
         (catch Exception e
           ;; FIXME: Switch to something that resembles real logging.
-          (do (println "Failed to bind " master-socket " to " master-address)
+          (do (log/error "Failed to bind " master-socket " to " master-address)
               (throw)))))
 
     ;; Want to be pickier about who can connect. Or, at least,
@@ -172,13 +189,16 @@ and start it running. Returns an updated instance of the system."
 
     ;; Return the updated system.
     {:done done
+     ;; Pretty much all of these belong in their own leaf.
      :network-context (atom context)
      :master-connection (atom master-socket)
      :clients (atom client-socket)
      :authentication-thread (atom auth-thread)
      ;; Strictly so I have a reference to what's happening where.
      ;; Note that this is just an ordinary map.
-     :ports ports}))
+     :ports ports
+
+     :users (:users universe)}))
 
 (defn kill-authenticator
   "Tell the authenticator socket to kill itself.
@@ -207,8 +227,8 @@ or auth-socket."
        (if-let [ctx @(:network-context universe)]
          (do
            (when (< 0 retries)
-             (mqh/with-socket [auth-killer ctx :req]
-               (println "There are " retries 
+             (mq/with-socket [auth-killer ctx :req]
+               (log/info "There are " retries 
                         " attempts left to be rid of ports")
                
                ;; Now we can start killing off the interesting shit
@@ -217,25 +237,21 @@ or auth-socket."
                ;; send is async, right? There isn't any point
                ;; to specifying NOBLOCK here,
                ;; is there?
-               (mqh/send auth-killer "dieDieDIE!!")
-               (println "Death sentence sent")
+               (mq/send auth-killer "dieDieDIE!!")
+               (log/trace "Death sentence sent")
 
                ;; If the other side's alive, it really should 
                ;; ACK pretty much immediately.
-               ;; This is the second time I've needed
-               ;; this sort of boiler plate.
-               ;; FIXME: Use with-poller instead
-               (let [poller (mq/poller ctx)]
-                 (mq/register poller auth-killer :pollin :pollerr)
+               (mq/with-poller final-countdown ctx auth-killer
                  ;; The 0 indicates that we're checking the first 
                  ;; [and only]
                  ;; poller. Really need some sort of timeout option. 
                  ;; I think.
                  ;; Compare with auth-socket.
-                 (if (mq/check-poller poller 0 :pollerr)
+                 (if (mq/check-poller final-countdown 0 :pollerr)
                    (throw (RuntimeException.
                            "AUTH socket error! Be smarter"))
-                   (when-not (mq/check-poller poller 0 :pollin)
+                   (when-not (mq/check-poller final-countdown 0 :pollin)
                      ;; This is lame...but I have to start somewhere.
                      ;; If the sockets are all tied up doing something
                      ;; else, this much delay
@@ -243,40 +259,42 @@ or auth-socket."
                      ;; Of course, magic numbers like this are evil!
                      (Thread/sleep 75)
                      (kill-authenticator universe (dec retries))))))))
-         (println "No networking context...WTF?")))
-     (println "Authentication thread gone")))
+         (log/error "No networking context...WTF?")))
+     (log/info "Authentication thread gone")))
 
 (defn stop
   "Performs side-effects to shut down the system and release its
 resources. Returns an updated instance of the system, ready to re-start."
   [universe]
   (when universe
-    (println "Have a universe to kill")
+    (log/trace "Have a universe to kill")
     ;; Signal to other threads that pieces are finished
     (swap! (:done universe) (constantly true))
 
-    ;; Realistically, need to wait for them to finish up.
+    (reset! (:users universe) user/stop)
+
+    ;; Realistically, need to wait for those communication threads to finish up.
     (when-let [ctx @(:network-context universe)]
-      (println "Have a context to shut down")
+      (log/trace "Have a context to shut down")
       (try
         ;;(kill-authenticator universe)
-        ;;(println "Authenticator killer didn't throw")
+        ;;(log/info "Authenticator killer didn't throw")
         (let [done (:done universe)]
           (when (not @done)
             (swap! done false)
             (let [auth-thread @(:authentication-thread universe)]
               (.join auth-thread 500)
-              (println "Authentication thread has exited"))))
+              (log/trace "Authentication thread has exited"))))
         (catch InterruptedException e
           (str "Exception waiting for authentication thread to exit: "
                (.getMessage e)))
         (finally
           (when-let [sock @(:clients universe)]
             (.close sock))
-          (println "Client thread closed")
+          (log/trace "Client thread closed")
           (when-let [sock @(:master-connection universe)]
             (.close sock))
-          (println "Master connection closed")
+          (log/trace "Master connection closed")
           ;; ...and we're hanging here.
           ;; This is built-in 0mq behavior. Especially
           ;; at startup, when I'm sending several "kill"
@@ -287,6 +305,6 @@ resources. Returns an updated instance of the system, ready to re-start."
           ;; FIXME: How do I force it to accept failure?
           ;;(throw (RuntimeException. "Start here"))
           (.term ctx)))))
-  (println "Universe destroyed.")
+  (log/info "Universe destroyed.")
   ;; Just return a completely fresh instance.
   (init))
