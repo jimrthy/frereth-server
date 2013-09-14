@@ -35,7 +35,7 @@ a delightful advantage of using freenet.
 With the downside of supporting old servers until clients
 switch to the new version. It seems like an interesting
 thought."
-  (if (string? msg)
+  (if (or (string? msg) (keyword? msg))
     msg
     (when (seq msg)
       ;; Just got a batch of messages. What do they mean?
@@ -53,12 +53,18 @@ thought."
   ;; Really just a placeholder message indicting that it's OK to quit
   ;; Note that we are *not* getting here
   (log "Quit permission")
+  (throw (RuntimeException. "Obsolete?"))
   "K")
 
 (defmethod dispatch "ping"
   [_]
   (log "Heartbeat")
   "pong")
+
+(defmethod dispatch :icanhaz?
+  [_]
+  ;; This seemed like a good idea, but it doesn't make any sense
+  (throw (RuntimeException. "Don't bother...should have been part of a list.")))
 
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
@@ -67,20 +73,12 @@ thought."
   (log msgs)
   (log "\n(that's some sort of SEQ of messages)\n")
 
-  ;; Q: What are the odds that I can call a method this way?
-  ;; A: Not very good.
-  (comment (dorun dispatch msgs))
-  (log (str "Dispatching a sequence of messages: " msgs))
-  
-  ;; This fails in the same way: cannot convert a MultiFn to a java.lang.Number:
-  (comment (dorun #(dispatch %) msgs))
-  ;; Or possibly my real problem is laziness?
-  (comment (for [m msgs]
-             (throw (RuntimeException. (str m)))))
-
-  (comment (log "Anything interesting?\n"))
-
   (log msgs)
+  ;; Honestly, this approach is half-baked, at best.
+  ;; If I have a list, I should probably EDN it and dispatch on that.
+  ;; Or something along those lines. Since it's an attempt at a 
+  ;; function call.
+  ;; If it's a general sequence, though, this approach makes total sense.
   (if-let [car (first msgs)]
     (do
       (log car)

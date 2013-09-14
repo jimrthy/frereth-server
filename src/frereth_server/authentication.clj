@@ -1,7 +1,8 @@
 (ns frereth-server.authentication
+  (:require [frereth-server.user :as user])
   (:gen-class))
 
-(defn- dispatcher [msg]
+(defn- dispatcher [msg _]
   "This is just screaming for something like cond.
 It seems pretty important to remember that this isn't
 exactly performance-critical code.
@@ -40,25 +41,20 @@ A: No. Absolutely not.
 The auth socket shouldn't be dealing with server management."
   dispatcher)
 
-(comment (defmethod dispatch "dieDieDIE!!"
-           [_]
-           ;; Really just a placeholder message indicting that it's OK to quit
-           (throw (RuntimeException. "Totally misplaced!!"))))
-
 (defmethod dispatch "ping"
-  [_]
+  [_ _]
   "pong")
 
 (defmethod dispatch ::multiple
-  [msgs]
+  [msgs system]
   "Callers shouldn't see all the results. That would be a nasty security hole.
 Then again, the callers are really programs on the other end of a network that
 wound up here through at least a couple of layers. Allow them to decide how
 much of the actual results to share."
-  (map (fn [m] (dispatch m) msgs)))
+  (map (fn [m] (dispatch m system) msgs)))
 
 (defmethod dispatch :ohai
-  [_]
+  [_ _]
   :oryl?)
 
 (defn known-protocol?
@@ -71,7 +67,7 @@ I'm starting as small as I can get away with."
   (= p :frereth))
 
 (defmethod dispatch 'icanhaz?
-  [msg]
+  [msg system]
   "Loop through the protocols the client claims to speak. Choose the best
 one this server also speaks. Return that, or :lolz if there are no matches.
 This is *screaming* to be broken out into multiple methods for simplification"
@@ -98,8 +94,18 @@ This is *screaming* to be broken out into multiple methods for simplification"
         (first rankings))
       :lolz)))
 
+(defn authenticate
+  "TODO: This really should go through something like Apache Shiro.
+As well as checking that the user exists (for example)"
+  [{:keys [user-id roles password icanhaz? :as credentials]} system]
+  (= icanhaz? :play))
+
+(defmethod dispatch 'ib
+  [[_ credentials] system]
+  (if (user/existing-user? (:user-id credentials) system)
+    (authenticate credentials system)
+    :lolz))
+
 (defmethod dispatch :default
-  [echo]
+  [echo _]
   (throw (RuntimeException. (str "Illegal request: " echo))))
-
-

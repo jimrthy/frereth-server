@@ -1,5 +1,4 @@
 (ns frereth-server.system
-  (:gen-class)
   (:require [frereth-server.auth-socket :as auth]
             [zguide.zhelpers :as mqh]
             [zeromq.zmq :as mq])

@@ -26,37 +26,44 @@
 ;; out of their way to totally ignore identity, while still
 ;; respecting privacy. It's vital to build this sort of thing into
 ;; the foundation.
-             (#'auth/dispatch :ohai)
+             (auth/dispatch :ohai nil)
              => :oryl?)
        (fact "Doomed handshake"
-;; Server should totally reject this.
-             (#'auth/dispatch (list 'icanhaz? {:me-speekz
-                                               [[:blah [nil]] 
-                                                [:whatever [nil]]]}))
+             ;; Server should totally reject this.
+             (auth/dispatch (list 'icanhaz? {:me-speekz
+                                             [[:blah [nil]] 
+                                              [:whatever [nil]]]}) nil)
              ;; Actually, the server should force us to completely and start over
              ;; from the beginning after that.
              => :lolz)
-       ;; This next sequence totally fails under anything resembling real auth/auth.
-       ;; Then again, I'd be out of my mind to try to write that myself.
-       ;; So just leave what I have as totally stateless for now.
        (fact "Reasonable handshake"
              ;; This seems like a reasonable handshake that ought to be
              ;; allowed to proceed. It's requesting something and announcing
              ;; a realistic hypothetical protocol.
              ;; Of course, anything realistic would have to specify what it
              ;; was requesting.
-             (#'auth/dispatch (list 'icanhaz? {:me-speekz
-                                               {:blah [1 2 3]
-                                                :frereth [[0 0 1]
-                                                          [3 2 1]]}}))
+             (auth/dispatch (list 'icanhaz? {:me-speekz
+                                             {:blah [1 2 3]
+                                              :frereth [[0 0 1]
+                                                        [3 2 1]]}}) nil)
              => [:frereth [0 0 1]])
-       (fact "Announcing identity"
-             ;; Finally getting to something that resembles authentication
-             (#'auth/dispatch (list 'ib "test"))
-             => :oryl?)
-       (fact (list 'yarly  "Really secure signature")
-             => :wachu-wantz?)
-       (fact (list 'icanhaz? :play)
+
+       ;; This next sequence is totally horrid. I like the modularity, but
+       ;; it all needs to happen in one step.
+       (comment (do
+                  (fact "Announcing identity"
+                        ;; Finally getting to something that resembles authentication
+                        (#'auth/dispatch (list 'ib "test"))
+                        => :oryl?)
+                  (fact (list 'yarly  "Really secure signature")
+                        => :wachu-wantz?)
+                  (fact (list 'icanhaz? :play)
+                        => "RDYPLYR1")))
+       ;; Desperately need counter-examples that fail
+       (fact "Authenticating"
+             auth/dispatch (list 'ib {:user-id "test"
+                                      :password "Really secure signature"
+                                      :icanhaz? :play})
              => "RDYPLYR1"))
 
 
