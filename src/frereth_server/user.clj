@@ -6,6 +6,16 @@
   ;; TODO: Load up a database connection instead.
   ;; Or, maybe better, use an existing database connection that was
   ;; configured elsewhere.
+  ;; Or, maybe, use a connection pool.
+  ;; c.f. BoneCP, c3po, and
+  ;; https://github.com/kumarshantanu/clj-dbcp
+  ;; There's also
+  ;; http://tomcat.apache.org/tomcat-7.0-doc/jdbc-pool.html
+  ;; Korma should take that worry completely off my plate.
+  ;; So don't worry about the connection pool part, anyway.
+  ;; As for the actual database connection...I actually want
+  ;; to be using Apache Shiro here, so I probably don't need
+  ;; that at all.
   {})
 
 (defn stop

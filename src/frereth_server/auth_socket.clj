@@ -1,8 +1,7 @@
 (ns frereth-server.auth-socket
-  (:require [zguide.zhelpers :as mq]
+  (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
-            [clojure.java.io :as io]
-            )
+            [clojure.java.io :as io])
   (:gen-class))
 
 (defn- log [msg]
