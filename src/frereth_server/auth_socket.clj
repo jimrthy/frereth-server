@@ -1,20 +1,21 @@
 (ns frereth-server.auth-socket
   (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.tools.logging :as log])
   (:gen-class))
 
-(defn- log [msg]
-  "FIXME: Debug only.
+(comment (defn- log [msg]
+           "FIXME: Debug only.
 If nothing else, it does not belong here. And should not be writing to
 anything in /tmp.
 For that matter...whatever. I need to get around to implementing 'real'
 logging.
 This is a decent placeholder until I have enough written to justify
 thinking about crap like this in issues."
-  (with-open [w (io/writer "/tmp/log.txt" :append true)]
-    (.write w (str msg))
-    (.write w "\n")))
+           (with-open [w (io/writer "/tmp/log.txt" :append true)]
+             (.write w (str msg))
+             (.write w "\n"))))
 
 (defn- read-message [s]
   (mq/recv-all-str s))
@@ -50,13 +51,15 @@ thought."
   [_]
   ;; Really just a placeholder message indicting that it's OK to quit
   ;; Note that we are *not* getting here
-  (log "Quit permission")
+  (log/warn "Quit permission")
+  ;; Should *not* be coming over an AUTH/client socket.
+  ;; This should happen over a command/control socket.
   (throw (RuntimeException. "Obsolete?"))
   "K")
 
 (defmethod dispatch "ping"
   [_]
-  (log "Heartbeat")
+  (log/trace "Heartbeat")
   "pong")
 
 (defmethod dispatch :icanhaz?
@@ -67,11 +70,10 @@ thought."
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
   ;; Which seems pretty reasonable.
-  (log "Dispatching :list:\n")
-  (log msgs)
-  (log "\n(that's some sort of SEQ of messages)\n")
+  (log/trace (str "Dispatching :list:\n"
+                  msgs
+                  "\n(that's some sort of SEQ of messages)\n"))
 
-  (log msgs)
   ;; Honestly, this approach is half-baked, at best.
   ;; If I have a list, I should probably EDN it and dispatch on that.
   ;; Or something along those lines. Since it's an attempt at a 
@@ -79,10 +81,10 @@ thought."
   ;; If it's a general sequence, though, this approach makes total sense.
   (if-let [car (first msgs)]
     (do
-      (log car)
+      (log/debug car)
       (dispatch (rest msgs)))
     (do
-      (log (str "Empty CAR. CDR: " (rest msgs))))))
+      (log/debug (str "Empty CAR. CDR: " (rest msgs))))))
 
 (defmethod dispatch :default
   [echo]
@@ -104,8 +106,7 @@ Oops. Backwards parameters."
       ;; I hate to break this up like this, but it just is not
       ;; a performance-critical section.
       ;; Probably.
-      (log (format "Sending: %s" msgs))
-      (log (format "\nto\n%s\n" s))
+      (log/trace (format "Sending: %s\nto\n%s" msgs s))
       (mq/send-all s msgs))))
 
 
@@ -128,6 +129,8 @@ assignment and don't surrender to laziness."
   ;; but it seems pretty blindingly obvious.
   ;; The alternative simplifies the client ("I only need 1 socket!")
   ;; but not by much. Certainly not enough to qualify as an upside.
+
+  (log/trace "Creating Listener")
   ;; FIXME: Rewrite this using with-socket.
   (let [listener (mq/socket ctx :dealer)]
     (try
@@ -149,6 +152,7 @@ assignment and don't surrender to laziness."
       ;; socket at runtime.
       ;; Have to think my way through this, but not now.
       ;; Right now, I have other priorities.
+      (log/trace "Binding Listener to Port " auth-port)
       ;; FIXME: What should this actually be listening on?
       (mq/bind listener (format "tcp://*:%d" auth-port))
 
@@ -168,8 +172,9 @@ assignment and don't surrender to laziness."
             ;; I strongly suspect that I'm actually looking for the
             ;; majordomo pattern.
 
+            (log/trace "Polling authenticator...")
             ;; poll for a request.
-            ;; Do I need to specify a timeout?
+            ;; Q: Do I need to specify a timeout?
             (mq/poll authenticator)
 
             ;; That means that system/stop needs to send a "die" message
@@ -192,10 +197,10 @@ assignment and don't surrender to laziness."
                 ;; I can see request being a lazy sequence.
                 ;; But (doall ...) is documented to realize the entire sequence.
                 ;; Here's a hint: it still returns a LazySeq, apparently
-                (log (str "REQUEST: " (doall request) "\nMessages in request:\n"))
+                (log/trace (str "REQUEST: " (doall request) "\nMessages in request:\n"))
                 (doseq [msg request]
-                  (log msg))
-                (log "Dispatching response:\n")
+                  (log/trace msg))
+                (log/trace "Dispatching response:\n")
                 (let [response (dispatch request)]
                   (send-message listener response))))
             (when (mq/check-poller authenticator 0 :pollerr)
@@ -216,7 +221,9 @@ This feels like an odd approach, but nothing more obvious springs to mind.
 This gets called by system/start. It needs system as a parameter to do
 its thing. Circular references are bad, mmkay?"
   [ctx done-reference auth-port]
-  (log (str "Kicking off the authentication runner thread in context: "
-            ctx "\nwaiting on Done Reference " done-reference))
+  (log/info (str "Kicking off the authentication runner thread in context: "
+                 ctx "\nwaiting on Done Reference " done-reference))
+  ;; FIXME: Don't run a thread directly.
+  ;; Instead, go through an Executor.
   (.start (Thread. (fn []
                      (authenticator ctx done-reference auth-port)))))

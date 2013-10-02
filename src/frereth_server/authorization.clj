@@ -1,5 +1,5 @@
 (ns frereth-server.authorization
-  (:require [zguide.zhelpers :as mq])
+  (:require [cljeromq.core :as mq])
   (:gen-class))
 
 (defn runner

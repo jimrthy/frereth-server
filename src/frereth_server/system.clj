@@ -1,58 +1,76 @@
 (ns frereth-server.system
-  (:require 
+  (:require
+   [cljeromq.core :as mq]
    [clojure.tools.logging :as log]
    [frereth-server.auth-socket :as auth]
-   [frereth-server.user :as user]
-   [zguide.zhelpers :as mq])
+   [frereth-server.user :as user])
   (:gen-class))
 
 (defn init
   "Returns a new instance of the whole application.
 I really need to figure out what I want to do here."
   []
-  {;; Process-wide context for zeromq. It doesn't seem
-   ;; likely to change at runtime, but it's possible.
-   ;; e.g. If we want to tweak its threads.
-   :network-context (atom nil)
-   ;; Actual controller socket.
-   ;; If the context changes, then all the sockets that use it must also.
-   :master-connection (atom nil)
+  (log/info "Initializing Frereth Server")
+  (log/warn "FIXME: Log to a database instead")
 
-   ;; It seems pretty likely that this is important.
-   ;; At least for remote servers that might very well
-   ;; be load-balanced, or some such.
-   ;; Of course, that's really a bad reason for it to 
-   ;; exist now.
-   ;; YAGNI.
-   ;; Q: What on earth did I have planned for this?
-   ;; A: My best guess is something along the lines of
-   ;; majordomo.
-   :broker (atom nil)
+  (let [result
+        {;; Process-wide context for zeromq. It doesn't seem
+         ;; likely to change at runtime, but it's possible.
+         ;; e.g. If we want to tweak its threads.
+         :network-context (atom nil)
+         ;; Actual controller socket.
+         ;; If the context changes, then all the sockets that use it must also.
+         :master-connection (atom nil)
 
-   ;; Signal everything that we're finished.
-   ;; Not elegant...but it's already enough of a PITA to qualify
-   ;; as YAGNI.
-   :done (atom nil)
+         ;; It seems pretty likely that this is important.
+         ;; At least for remote servers that might very well
+         ;; be load-balanced, or some such.
+         ;; Of course, that's really a bad reason for it to 
+         ;; exist now.
+         ;; YAGNI.
+         ;; Q: What on earth did I have planned for this?
+         ;; A: My best guess is something along the lines of
+         ;; majordomo.
+         :broker (atom nil)
 
-   ;; These seem like lower-level configuration details that don't 
-   ;; particularly belong here...oh, well. If nothing else, they
-   ;; work as something like fairly reasonable defaults
-   ;; FIXME: Seriously, though. These don't belong here.
-   :ports {:client 7843
-           :master 7842
-           :auth 7841}
+         ;; Signal everything that we're finished.
+         ;; Not elegant...but it's already enough of a PITA to qualify
+         ;; as YAGNI.
+         :done (atom nil)
 
-   :users (atom nil)})
+         ;; These seem like lower-level configuration details that don't 
+         ;; particularly belong here...oh, well. If nothing else, they
+         ;; work as something like fairly reasonable defaults
+         ;; FIXME: Seriously, though. These don't belong here.
+         :ports {:client 7843
+                 :master 7842
+                 :auth 7841}
+
+         :users (atom nil)}]
+    (log/info "Frereth Server Initialized")
+
+    result))
 
 (defn start
   "Performs side effects to initialize the system, acquire resources,
 and start it running. Returns an updated instance of the system."
   [universe]
+  (log/info "Starting Frereth Server")
   (letfn [(verify-dead [k]
             ;; This is causing a NPE, presumably because I'm trying
             ;; to deref nil atoms. 
             ;; FIXME: So how should this be done?
-            (assert (nil? @(k universe))))]
+            (if-let [val (k universe)]
+              (do
+                (println k ": " val)
+                (assert (nil? @(k universe))))
+              (do
+                (println "Missing " k " in " universe ".\nThis *will* lead to an NPE")
+                ;; It's tempting to try to recover from this. It
+                ;; would make life slightly easier if I were debugging this
+                ;; problem from the REPL.
+                ;; Oh well. Just fix it and move on so I can get into the REPL.
+                (throw (RuntimeException. "No sense trying to get past this")))))]
     (dorun (map verify-dead 
                 [:network-context :master-connection :broker :done :users])))
 
@@ -198,7 +216,8 @@ and start it running. Returns an updated instance of the system."
      ;; Note that this is just an ordinary map.
      :ports ports
 
-     :users (:users universe)}))
+     :users (:users universe)})
+  (log/info "Frereth Server Started"))
 
 (defn kill-authenticator
   "Tell the authenticator socket to kill itself.
@@ -266,6 +285,7 @@ or auth-socket."
   "Performs side-effects to shut down the system and release its
 resources. Returns an updated instance of the system, ready to re-start."
   [universe]
+  (log/info "Stopping Frereth Server")
   (when universe
     (log/trace "Have a universe to kill")
     ;; Signal to other threads that pieces are finished

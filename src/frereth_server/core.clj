@@ -2,8 +2,7 @@
   (:gen-class)
   (:require
    [clojure.tools.logging :as log]
-   ;;[zeromq.zmq :as mq]
-   [zguide.zhelpers :as mq]
+   [cljeromq.core :as mq]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]))
 
@@ -24,28 +23,8 @@
   (let [;; Basic system first
         dead-system (sys/init)
         system (sys/start dead-system)
-        
-        ;; More specific pieces...tempting to separate these into their own
-        ;; function just to emphasize that this is really the next step.
-        ;; Then again, I've been fantasizing lately about setting up
-        ;; something resembling the BSD init thing, complete with runlevels.
-        ;; Adding complications at this point leads to madness.
-        thread-count (get-cpu-count)
-        master-port (:master (:ports system))]
-    ;; What's the point of this?
-    ;; System should already be listening on everything
-    ;; that matters.
-    ;; What on earth is there to do here?
-    ;; This should probably just go ahead and exit...
-    ;; as long as the system threads are alive the VM
-    ;; should keep going.
-    (log/trace "Listening on " thread-count " thread connections")
-    (mq/with-context [context thread-count]
-      (do
-        (with-open [master-socket (-> context
-                                      (mq/socket :dealer)
-                                      (mq/bind (str "tcp://127.0.0.1:" master-port)))]
-          ;; Let's start with ECHO
-          (let [pull (future (mq/recv master-socket))]
-            (let [msg @pull]
-              (mq/send master-socket msg))))))))
+
+        ;; FIXME: Should load up some sort of info about which and how many
+        ;; thread are actually running now.
+        ]
+    (log/trace "Have " (Thread/activeCount) " threads")))
