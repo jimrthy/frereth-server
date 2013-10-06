@@ -23,8 +23,12 @@
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[midje "1.5.1"]
+                                  [night-vision "0.1.0-SNAPSHOT"]
                                   [org.clojure/tools.namespace "0.2.3"]
-                                  [org.clojure/java.classpath "0.2.0"]]}}
+                                  [org.clojure/java.classpath "0.2.0"]]
+                   ;; night-vision.goggles/introspect-ns! 'user
+                   :injections [(require 'night-vision.goggles)
+                                (require 'clojure.pprint)]}}
   :plugins [[lein-midje "3.0.0"]
             ;; lein-git-deps only until I can get my zeromq wrapper into clojars
             [lein-git-deps "0.0.1-SNAPSHOT"]]
