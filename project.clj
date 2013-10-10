@@ -5,6 +5,9 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.0"]
+                 ;; For now, this next library needs to be distributed to
+                 ;; a local maven repo.
+                 [jimrthy/cljeromq "0.1.0-SNAPSHOT"]
                  [org.clojure/clojure "1.5.1"]
                  ;; FIXME: Log rotation!!
                  [org.clojure/tools.logging "0.2.6"]
@@ -19,7 +22,7 @@
                  [org.jeromq/jeromq "0.3.0-SNAPSHOT"]
                  [org.zeromq/cljzmq "0.1.1" :exclusions [org.zeromq/jzmq]]
                  ]
-  :git-dependencies [["git@github.com:jimrthy/cljeromq.git"]]
+  ;;:git-dependencies [["git@github.com:jimrthy/cljeromq.git"]]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[midje "1.5.1"]
@@ -35,5 +38,11 @@
   ;; TODO: Will I need the sonatype repositories reference(s)?
   :repositories {;"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
                  "sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"
+                 ;; Doing this next doesn't seem to work. And it's totally against
+                 ;; the lein2 grain. Just deploy locally and be done with it.
+                 ;; Well, until I have time to figure out how to deploy to clojars
+                 ;; and maven central.
+                 ;;"local" "file:/home/james/repo"
                  }
-  :source-paths ["src" ".lein-git-deps/cljeromq/src"])
+  ;;:source-paths ["src" ".lein-git-deps/cljeromq/src"]
+  )
