@@ -1,13 +1,7 @@
 (ns frereth-server.core-test
   (:use clojure.test
-        ;;expectations
         midje.sweet
         frereth-server.core))
-
-(deftest a-test
-  ;; Basic clojure.test.
-  (testing "Verify basic testing framework"
-    (is (= 1 1))))
 
 (facts "How much effort will it take to wrap my brain around midje?"
        (fact "Equality checks are boring"

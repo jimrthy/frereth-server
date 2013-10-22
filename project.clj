@@ -21,7 +21,7 @@
                  ;;[org.zeromq/jzmq "2.2.1"]
                  [org.jeromq/jeromq "0.3.0-SNAPSHOT"]
                  [org.zeromq/cljzmq "0.1.1" :exclusions [org.zeromq/jzmq]]
-                 ]
+                 [spyscope "0.1.3"]]
   ;;:git-dependencies [["git@github.com:jimrthy/cljeromq.git"]]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
@@ -32,17 +32,6 @@
                    ;; night-vision.goggles/introspect-ns! 'user
                    :injections [(require 'night-vision.goggles)
                                 (require 'clojure.pprint)]}}
-  :plugins [[lein-midje "3.0.0"]
-            ;; lein-git-deps only until I can get my zeromq wrapper into clojars
-            [lein-git-deps "0.0.1-SNAPSHOT"]]
-  ;; TODO: Will I need the sonatype repositories reference(s)?
-  :repositories {;"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
-                 "sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"
-                 ;; Doing this next doesn't seem to work. And it's totally against
-                 ;; the lein2 grain. Just deploy locally and be done with it.
-                 ;; Well, until I have time to figure out how to deploy to clojars
-                 ;; and maven central.
-                 ;;"local" "file:/home/james/repo"
-                 }
-  ;;:source-paths ["src" ".lein-git-deps/cljeromq/src"]
-  )
+  :plugins [[lein-midje "3.0.0"]]
+  :repl-options {:init-ns user}
+  :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"})
