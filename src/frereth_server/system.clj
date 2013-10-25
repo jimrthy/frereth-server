@@ -1,15 +1,29 @@
 (ns frereth-server.system
   (:require
    [cljeromq.core :as mq]
-   [clojure.tools.logging :as log]
+   [com.postspectacular.rotor :as r]
    [frereth-server.auth-socket :as auth]
-   [frereth-server.user :as user])
+   [frereth-server.user :as user]
+   [taoensso.timbre :as log
+    :refer (trace debug info warn error fatal spy with-log-level)])
   (:gen-class))
 
 (defn init
   "Returns a new instance of the whole application.
 I really need to figure out what I want to do here."
   []
+  (log/set-config!
+   [:appenders :rotor]
+   {:doc "Writes to (:path (:rotor :shared-appender-config)) file and creates optional backups"
+    :min-level :trace
+    :enabled? true
+    :async? false
+    :max-message-per-msecs nil
+    :fn r/append})
+  (log/set-config!
+   [:shared-appender-config :rotor]
+   {:path "logs/app.log" :max-size (* 512 1024) :backlog 5})
+
   (log/info "Initializing Frereth Server")
   (log/warn "FIXME: Log to a database instead")
 

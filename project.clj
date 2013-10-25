@@ -5,6 +5,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.0"]
+                 [com.postspectacular/rotor "0.1.0"]
+                 [com.taoensso/timbre "2.6.3"]
                  ;; For now, this next library needs to be distributed to
                  ;; a local maven repo.
                  [jimrthy/cljeromq "0.1.0-SNAPSHOT"]
