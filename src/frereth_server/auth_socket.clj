@@ -2,20 +2,9 @@
   (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
-            [clojure.tools.logging :as log])
+            [taoensso.timbre :as log
+             :refer [trace debug info warn error fatal spy with-log-level]])
   (:gen-class))
-
-(comment (defn- log [msg]
-           "FIXME: Debug only.
-If nothing else, it does not belong here. And should not be writing to
-anything in /tmp.
-For that matter...whatever. I need to get around to implementing 'real'
-logging.
-This is a decent placeholder until I have enough written to justify
-thinking about crap like this in issues."
-           (with-open [w (io/writer "/tmp/log.txt" :append true)]
-             (.write w (str msg))
-             (.write w "\n"))))
 
 (defn- read-message [s]
   (mq/recv-all-str s))
@@ -51,7 +40,7 @@ thought."
   [_]
   ;; Really just a placeholder message indicting that it's OK to quit
   ;; Note that we are *not* getting here
-  (log/warn "Quit permission")
+  (warn "Quit permission")
   ;; Should *not* be coming over an AUTH/client socket.
   ;; This should happen over a command/control socket.
   (throw (RuntimeException. "Obsolete?"))
@@ -59,7 +48,7 @@ thought."
 
 (defmethod dispatch "ping"
   [_]
-  (log/trace "Heartbeat")
+  (trace "Heartbeat")
   "pong")
 
 (defmethod dispatch :icanhaz?
@@ -70,7 +59,7 @@ thought."
 (defmethod dispatch :list [msgs]
   ;; Based on the next line, I have something like a Vector of byte arrays.
   ;; Which seems pretty reasonable.
-  (log/trace (str "Dispatching :list:\n"
+  (trace (str "Dispatching :list:\n"
                   msgs
                   "\n(that's some sort of SEQ of messages)\n"))
 

@@ -11,8 +11,6 @@
                  ;; a local maven repo.
                  [jimrthy/cljeromq "0.1.0-SNAPSHOT"]
                  [org.clojure/clojure "1.5.1"]
-                 ;; FIXME: Log rotation!!
-                 [org.clojure/tools.logging "0.2.6"]
                  ;; See if swapping to jeromq makes life easier.
                  ;; This seems like I'll be missing an important
                  ;; point when the security/encryption pieces fall
@@ -30,7 +28,8 @@
                    :dependencies [[midje "1.5.1"]
                                   [night-vision "0.1.0-SNAPSHOT"]
                                   [org.clojure/tools.namespace "0.2.3"]
-                                  [org.clojure/java.classpath "0.2.0"]]
+                                  [org.clojure/java.classpath "0.2.0"]
+                                  [ritz/ritz-debugger "0.7.0"]]
                    ;; night-vision.goggles/introspect-ns! 'user
                    :injections [(require 'night-vision.goggles)
                                 (require 'clojure.pprint)]}}
