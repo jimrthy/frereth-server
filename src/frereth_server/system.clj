@@ -275,7 +275,7 @@ or auth-socket."
 
                ;; If the other side's alive, it really should 
                ;; ACK pretty much immediately.
-               (mq/with-poller final-countdown ctx auth-killer
+               (mq/with-poller [final-countdown ctx auth-killer]
                  ;; The 0 indicates that we're checking the first 
                  ;; [and only]
                  ;; poller. Really need some sort of timeout option. 

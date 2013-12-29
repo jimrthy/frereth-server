@@ -145,7 +145,7 @@ assignment and don't surrender to laziness."
       ;; FIXME: What should this actually be listening on?
       (mq/bind listener (format "tcp://*:%d" auth-port))
 
-      (mq/with-poller authenticator ctx listener
+      (mq/with-poller [authenticator ctx listener]
         (try
           (while (not @done-reference)
             ;; FIXME: I really don't want to do busy polling here.
@@ -199,7 +199,7 @@ assignment and don't surrender to laziness."
         ;; this won't block if there are unsent messages in
         ;; the queue.
         ;; Or maybe not...see what happens.
-        (mq/close listener)))))
+        (mq/close! listener)))))
 
 
 (defn runner

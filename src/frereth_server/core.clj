@@ -1,10 +1,10 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
-   [clojure.tools.logging :as log]
    [cljeromq.core :as mq]
    [frereth-server.config :as config]
-   [frereth-server.system :as sys]))
+   [frereth-server.system :as sys]
+   [taoensso.timbre :as log :as log]))
 
 (defn get-cpu-count 
   "How many CPUs are available?"

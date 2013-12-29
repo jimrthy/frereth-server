@@ -97,7 +97,7 @@ This is *screaming* to be broken out into multiple methods for simplification"
 (defn authenticate
   "TODO: This really should go through something like Apache Shiro.
 As well as checking that the user exists (for example)"
-  [{:keys [user-id roles password icanhaz? :as credentials]} system]
+  [{:keys [user-id roles password icanhaz?] :as credentials} system]
   (= icanhaz? :play))
 
 (defmethod dispatch 'ib

@@ -3,7 +3,7 @@
   (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
             ;;[zeromq.zmq :as mq]
-            [zguide.zhelpers :as mq]))
+            [cljeromq.core :as mq]))
 
 (defn setup
   "Because I need a socket to send these requests from.

@@ -6,10 +6,14 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.0"]
                  [com.postspectacular/rotor "0.1.0"]
-                 [com.taoensso/timbre "2.6.3"]
+                 [com.taoensso/timbre "2.7.1"]
                  ;; For now, this next library needs to be distributed to
                  ;; a local maven repo.
-                 [jimrthy/cljeromq "0.1.0-SNAPSHOT"]
+                 ;; It seems like it should really take care of its handler
+                 ;; ...except that very likely means native libraries, so
+                 ;; it gets more complicated. Still, we shouldn't be worrying
+                 ;; about details like jeromq vs jzmq here.
+                 [org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
                  [org.clojure/clojure "1.5.1"]
                  ;; See if swapping to jeromq makes life easier.
                  ;; This seems like I'll be missing an important
@@ -20,12 +24,11 @@
                  ;; Aside from the fact that 2.2 is ancient and mostly obsolete.
                  ;;[org.zeromq/jzmq "2.2.1"]
                  [org.jeromq/jeromq "0.3.0-SNAPSHOT"]
-                 [org.zeromq/cljzmq "0.1.1" :exclusions [org.zeromq/jzmq]]
-                 [spyscope "0.1.3"]]
-  ;;:git-dependencies [["git@github.com:jimrthy/cljeromq.git"]]
+                 [org.zeromq/cljzmq "0.1.1" :exclusions [org.zeromq/jzmq]]]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [[midje "1.5.1"]
+                   :dependencies [[clj-ns-browser "1.3.1"]
+                                  [midje "1.6.0"]
                                   [night-vision "0.1.0-SNAPSHOT"]
                                   [org.clojure/tools.namespace "0.2.3"]
                                   [org.clojure/java.classpath "0.2.0"]
