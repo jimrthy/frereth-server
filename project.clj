@@ -27,15 +27,10 @@
                  [org.zeromq/cljzmq "0.1.1" :exclusions [org.zeromq/jzmq]]]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [[clj-ns-browser "1.3.1"]
-                                  [midje "1.6.0"]
-                                  [night-vision "0.1.0-SNAPSHOT"]
+                   :dependencies [[midje "1.6.0"]
                                   [org.clojure/tools.namespace "0.2.3"]
                                   [org.clojure/java.classpath "0.2.0"]
-                                  [ritz/ritz-debugger "0.7.0"]]
-                   ;; night-vision.goggles/introspect-ns! 'user
-                   :injections [(require 'night-vision.goggles)
-                                (require 'clojure.pprint)]}}
+                                  [ritz/ritz-debugger "0.7.0"]]}}
   :plugins [[lein-midje "3.0.0"]]
   :repl-options {:init-ns user}
   :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"})
