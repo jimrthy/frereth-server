@@ -8,6 +8,7 @@
             [frereth-server.system :as system]))
 
 (def system nil)
+(set! *print-length* 50)
 
 (defn init
   "Constructs the current development system"
