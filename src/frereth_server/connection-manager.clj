@@ -1,4 +1,4 @@
-(ns frereth-server.user
+(ns frereth-server.connection-manager
   (:require [com.stuartsierra.component :as component]
             [frereth-server.comm :as comm]
             [schema.core :as s])
@@ -50,6 +50,6 @@ TODO: Add the ability to create new users and look them up."
   (swap! (:users system) (fn [current]
                            (into current credentials))))
 
-(defn new
+(defn new-directory
   []
   (->Directory))
