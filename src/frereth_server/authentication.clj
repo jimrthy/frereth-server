@@ -1,5 +1,5 @@
 (ns frereth-server.authentication
-  (:require [frereth-server.user :as user])
+  (:require [frereth-server.connection-manager :as connection-manager])
   (:gen-class))
 
 (defn- dispatcher [msg _]
@@ -102,7 +102,7 @@ As well as checking that the user exists (for example)"
 
 (defmethod dispatch 'ib
   [[_ credentials] system]
-  (if (user/existing-user? (:user-id credentials) system)
+  (if (connection-manager/existing-user? (:user-id credentials) system)
     (authenticate credentials system)
     :lolz))
 
