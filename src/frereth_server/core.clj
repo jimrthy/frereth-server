@@ -1,10 +1,12 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
-   [cljeromq.core :as mq]
+   ;;[cljeromq.core :as mq]
+   [com.stuartsierra.component :as component]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]
-   [taoensso.timbre :as log :as log]))
+   [taoensso.timbre :as log :as log]
+   [zeromq.zmq :as mq]))
 
 (defn get-cpu-count 
   "How many CPUs are available?"
@@ -22,7 +24,7 @@
   ;; The basic gist:
   (let [;; Basic system first
         dead-system (sys/init)
-        system (sys/start dead-system)
+        system (component/start dead-system)
 
         ;; FIXME: Should load up some sort of info about which and how many
         ;; thread are actually running now.

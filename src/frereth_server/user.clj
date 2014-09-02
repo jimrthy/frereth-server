@@ -1,26 +1,38 @@
 (ns frereth-server.user
+  (:require [com.stuartsierra.component :as component]
+            [frereth-server.comm :as comm]
+            [schema.core :as s])
   (:gen-class))
 
-(defn start
-  [users]
-  ;; TODO: Load up a database connection instead.
-  ;; Or, maybe better, use an existing database connection that was
-  ;; configured elsewhere.
-  ;; Or, maybe, use a connection pool.
-  ;; c.f. BoneCP, c3po, and
-  ;; https://github.com/kumarshantanu/clj-dbcp
-  ;; There's also
-  ;; http://tomcat.apache.org/tomcat-7.0-doc/jdbc-pool.html
-  ;; Korma should take that worry completely off my plate.
-  ;; So don't worry about the connection pool part, anyway.
-  ;; As for the actual database connection...I actually want
-  ;; to be using Apache Shiro here, so I probably don't need
-  ;; that at all.
-  {})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Schema
 
-(defn stop
-  [users]
-  {})
+(s/defrecord User [id :- s/Uuid
+                   nick-name :- s/Str
+                   socket])
+
+(s/defrecord Directory [control-socket
+                        users :- {:s/Uuid User}]
+  component/Lifecycle
+  (start
+   [this]
+   ;; TODO: Pull this out of a database instead
+   (let [id (java.util.UUID/randomUUID)
+         nick-name "admin"
+         socket control-socket
+         base {:id id
+               :nick-name nick-name
+               :socket socket}
+         initial-user (strict-map->User base)]
+     ;; TODO: This is strictly for the sake of getting started.
+     (assoc this users {id initial-user})))
+
+  (stop
+   [this]
+   (assoc this :users {})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Public
 
 (defn existing-user-ids
   "What users does the system know about?
@@ -29,8 +41,7 @@ TODO: Add the ability to create new users and look them up."
   (keys @(:users system)))
 
 (defn existing-user?
-  "Does the system know about this user?
-This approach sucks."
+  "Does the system know about this user?"
   [user-id system]
   (contains? (existing-user-ids system) user-id))
 
@@ -38,3 +49,7 @@ This approach sucks."
   [credentials system]
   (swap! (:users system) (fn [current]
                            (into current credentials))))
+
+(defn new
+  []
+  (->Directory))
