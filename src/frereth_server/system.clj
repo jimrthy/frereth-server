@@ -5,7 +5,7 @@
    [frereth-server.auth-socket :as auth]
    [frereth-server.comm :as comm]
    [frereth-server.logging :as logging]
-   [frereth-server.user :as user]
+   [frereth-server.connection-manager :as connection-manager]
    [taoensso.timbre :as log]   
    [zeromq.zmq :as mq])
   (:gen-class))
@@ -30,7 +30,7 @@
          :control-url (comm/new-control-url)
          :done (promise)
          :logger (logging/new)
-         :principal-manager (user/new))
+         :principal-manager (connection-manager/new-directory))
         (component/system-using
          {:action-socket {:context :context
                           :url :action-url}
