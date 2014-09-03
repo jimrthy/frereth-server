@@ -24,8 +24,8 @@
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[midje "1.6.3"]
                                   [org.clojure/tools.namespace "0.2.5"]
-                                  [org.clojure/java.classpath "0.2.2"]
-                                  [ritz/ritz-debugger "0.7.0"]]}}
+                                  [org.clojure/java.classpath "0.2.2"]]}
+             :uberjar {:aot :all}}
   :plugins [[lein-midje "3.1.3"]]
   :repl-options {:init-ns user}
   :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"})
