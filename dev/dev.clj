@@ -43,4 +43,4 @@
 3) Creates and starts a new application instance"
   []
   (stop)
-  (refresh :after 'user/go))
+  (refresh :after 'dev/go))
