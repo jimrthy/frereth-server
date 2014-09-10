@@ -6,6 +6,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.0"]
                  [com.postspectacular/rotor "0.1.0"]
+                 [com.stuartsierra/component "0.2.2"]
                  [com.taoensso/timbre "2.7.1"]
                  ;; For now, this next library needs to be distributed to
                  ;; a local maven repo.
@@ -28,7 +29,7 @@
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[midje "1.6.0"]
-                                  [org.clojure/tools.namespace "0.2.3"]
+                                  [org.clojure/tools.namespace "0.2.6"]
                                   [org.clojure/java.classpath "0.2.0"]
                                   [ritz/ritz-debugger "0.7.0"]]}}
   :plugins [[lein-midje "3.0.0"]]
