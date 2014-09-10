@@ -1,43 +1,19 @@
-(ns user
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.pprint :refer (pprint)]
-            [clojure.repl :refer :all]
-            [clojure.test :as test]
-            [clojure.tools.namespace.repl :refer (refresh refresh-all)]
-            [frereth-server.system :as system]))
+(ns user)
 
-(def system nil)
-(set! *print-length* 50)
+;; This is an old trick from Pedestal. When system.clj doesn't compile,
+;; it can prevent the REPL from starting, which makes debugging very
+;; difficult. This extra step ensures the REPL starts, no matter what.
 
-(defn init
-  "Constructs the current development system"
+(defn dev
   []
-  (alter-var-root #'system
-                  (constantly (system/init))))
+  (require 'dev)
+  (in-ns 'dev))
 
-(defn start
-  "Starts the current development system"
-  []
-  (alter-var-root #'system system/start))
-
-(defn stop
-  "Shuts down and destroys the current development system"
-  []
-  (alter-var-root #'system
-                  (fn [s] (when s (system/stop s)))))
 
 (defn go
-  "Initializes the curent development system and starts it running"
   []
-  (init)
-  (start))
+  (println "Don't you mean (dev) ?"))
 
 (defn reset
-  "Heart of development workflow.
-1) Stops current application instance
-2) Reloads any source files that have changed
-3) Creates and starts a new application instance"
   []
-  (stop)
-  (refresh :after 'user/go))
+  (println "Yep. You mean (dev)"))

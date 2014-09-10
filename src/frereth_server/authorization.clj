@@ -1,5 +1,5 @@
 (ns frereth-server.authorization
-  (:require [cljeromq.core :as mq])
+  (:require [ribol.core :refer (raise)])
   (:gen-class))
 
 (defn runner
@@ -10,4 +10,4 @@
   ;; has appropriate access rights to do...something.
   ;; This is amorphous enough that I probably don't want to do anything
   ;; with it until it's received a lot more thought.
-  (throw (RuntimeException. "FIXME: Get this written")))
+  (raise :not-implemented))

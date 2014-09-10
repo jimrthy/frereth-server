@@ -1,13 +1,15 @@
 (ns frereth-server.auth-socket
-  (:require [cljeromq.core :as mq]
+  (:require [zeromq.zmq :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
+            [ribol.core :refer (raise)]
             [taoensso.timbre :as log
              :refer [trace debug info warn error fatal spy with-log-level]])
   (:gen-class))
 
 (defn- read-message [s]
-  (mq/recv-all-str s))
+  (raise :not-implemented)
+  (comment (mq/recv-all-str s)))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -84,19 +86,21 @@ thought."
 with multi-part messages.
 Oops. Backwards parameters."
   [s msgs]
-  ;; Performance isn't a consideration, really.
-  ;; Is it?
-  ;; Not for authentication. We expect this to take a while.
-  ;; By its very nature, it pretty much has to.
-  (if (string? msgs)
-    (mq/send s msgs)
-    (do
-      ;; Just assume that means it's a sequence.
-      ;; I hate to break this up like this, but it just is not
-      ;; a performance-critical section.
-      ;; Probably.
-      (log/trace (format "Sending: %s\nto\n%s" msgs s))
-      (mq/send-all s msgs))))
+  (when (seq msgs)
+    ;; Performance isn't a consideration, really.
+    ;; Is it?
+    ;; Not for authentication. We expect this to take a while.
+    ;; By its very nature, it pretty much has to.
+    (if (string? msgs)
+      (mq/send s msgs)
+      (do
+        ;; Just assume that means it's a sequence.
+        ;; I hate to break this up like this, but it just is not
+        ;; a performance-critical section.
+        ;; Probably.
+        (log/trace (format "Sending: %s\nto\n%s" msgs s))
+        (mq/send s (first msgs :send-more))
+        (send-message (rest msgs))))))
 
 
 (defn- authenticator
@@ -145,61 +149,59 @@ assignment and don't surrender to laziness."
       ;; FIXME: What should this actually be listening on?
       (mq/bind listener (format "tcp://*:%d" auth-port))
 
-      (mq/with-poller [authenticator ctx listener]
-        (try
-          (while (not @done-reference)
-            ;; FIXME: I really don't want to do busy polling here.
+      (raise :not-implemented)
+      (comment (mq/with-poller [authenticator ctx listener]
+                 (try
+                   (while (not @done-reference)
+                     ;; FIXME: I really don't want to do busy polling here.
 
-            ;; This is where the handshake and such actually goes.
-            ;; Doesn't it?
+                     ;; This is where the handshake and such actually goes.
+                     ;; Doesn't it?
 
-            ;; Well...how much, if any, of this should happen here?
-            ;; It seems like this probably *should* be pretty transparent,
-            ;; so I can implement something blindly stupid here, then
-            ;; not need to rewrite a bunch of crap when it's time to be less
-            ;; stupid.
-            ;; I strongly suspect that I'm actually looking for the
-            ;; majordomo pattern.
+                     ;; Well...how much, if any, of this should happen here?
+                     ;; It seems like this probably *should* be pretty transparent,
+                     ;; so I can implement something blindly stupid here, then
+                     ;; not need to rewrite a bunch of crap when it's time to be less
+                     ;; stupid.
+                     ;; I strongly suspect that I'm actually looking for the
+                     ;; majordomo pattern.
 
-            (log/trace "Polling authenticator...")
-            ;; poll for a request.
-            ;; Q: Do I need to specify a timeout?
-            (mq/poll authenticator)
+                     (log/trace "Polling authenticator...")
+                     ;; poll for a request.
+                     ;; Q: Do I need to specify a timeout?
+                     (mq/poll authenticator)
 
-            ;; That means that system/stop needs to send a "die" message
-            ;; to this port.
-            ;; Or reset done to true.
-            ;; Still need the die message: otherwise we stay frozen at the 
-            ;; (poll)
+                     ;; That means that system/stop needs to send a "die" message
+                     ;; to this port.
+                     ;; Or reset done to true.
+                     ;; Still need the die message: otherwise we stay frozen at the 
+                     ;; (poll)
 
-            ;; FIXME: Bind a specific socket to a specific port just for
-            ;; that message?
+                     ;; FIXME: Bind a specific socket to a specific port just for
+                     ;; that message?
 
-            ;; What's the memory overhead involved in that?
-            ;; It seems like it can't possibly be worth worrying about.
+                     ;; What's the memory overhead involved in that?
+                     ;; It seems like it can't possibly be worth worrying about.
 
-            ;; For other message types, work through a login sequence.
-            ;; Possibly present a potential client with details about
-            ;; what to do/where to go next.
-            (when (mq/check-poller authenticator 0 :pollin)
-              (let [request (read-message listener)]
-                ;; I can see request being a lazy sequence.
-                ;; But (doall ...) is documented to realize the entire sequence.
-                ;; Here's a hint: it still returns a LazySeq, apparently
-                (log/trace (str "REQUEST: " (doall request) "\nMessages in request:\n"))
-                (doseq [msg request]
-                  (log/trace msg))
-                (log/trace "Dispatching response:\n")
-                (let [response (dispatch request)]
-                  (send-message listener response))))
-            (when (mq/check-poller authenticator 0 :pollerr)
-              (throw (RuntimeException. "What should happen here?"))))))
+                     ;; For other message types, work through a login sequence.
+                     ;; Possibly present a potential client with details about
+                     ;; what to do/where to go next.
+                     (when (mq/check-poller authenticator 0 :pollin)
+                       (let [request (read-message listener)]
+                         ;; I can see request being a lazy sequence.
+                         ;; But (doall ...) is documented to realize the entire sequence.
+                         ;; Here's a hint: it still returns a LazySeq, apparently
+                         (log/trace (str "REQUEST: " (doall request) "\nMessages in request:\n"))
+                         (doseq [msg request]
+                           (log/trace msg))
+                         (log/trace "Dispatching response:\n")
+                         (let [response (dispatch request)]
+                           (send-message listener response))))
+                     (when (mq/check-poller authenticator 0 :pollerr)
+                       (throw (RuntimeException. "What should happen here?")))))))
       (finally
-        ;; Really need to set the ZMQ_LINGER option so
-        ;; this won't block if there are unsent messages in
-        ;; the queue.
-        ;; Or maybe not...see what happens.
-        (mq/close! listener)))))
+        (mq/set-linger listener 0)
+        (mq/close listener)))))
 
 
 (defn runner
