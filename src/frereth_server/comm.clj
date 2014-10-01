@@ -36,6 +36,9 @@
   (start
    [this]
    (let [sock (zmq/socket context (socket-type this))]
+     ;; TODO: Make this another option. It's really only
+     ;; for debugging.
+     (zmq/set-router-mandatory sock 1)
      (zmq/bind sock (build-url url))
      (assoc this :socket sock)))
 
@@ -53,6 +56,9 @@
   (start
    [this]
    (let [sock (zmq/socket context (socket-type this))]
+     ;; TODO: Make this another option. It's really only
+     ;; for debugging.
+     (zmq/set-router-mandatory sock 1)
      (zmq/bind sock (build-url url))
      (assoc this :socket sock)))
 
