@@ -27,7 +27,7 @@
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[midje "1.6.3" :exclusions [joda-time]]
-                                  [org.clojure/tools.namespace "0.2.7"]
+                                  [org.clojure/tools.namespace "0.2.8"]
                                   [org.clojure/java.classpath "0.2.2"]]}
              :uberjar {:aot :all}}
   :plugins [[lein-midje "3.1.3"]]
