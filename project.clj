@@ -8,7 +8,8 @@
                  ;; Q: Does this make any sense in production?
                  ;; A: Well, it makes sense for the general runtime which
                  ;; is the primary goal.
-                 [com.cemerick/pomegranate "0.3.0" :exclusions [org.codehaus.plexus/plexus-utils]]
+                 [com.cemerick/pomegranate "0.3.0" ;:exclusions [org.codehaus.plexus/plexus-utils]
+                  ]
                  [com.postspectacular/rotor "0.1.0"]
                  [com.stuartsierra/component "0.2.2"]
                  [com.taoensso/timbre "3.3.1"]
