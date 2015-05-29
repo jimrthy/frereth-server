@@ -30,6 +30,7 @@
                                   [org.clojure/tools.namespace "0.2.10"]
                                   [org.clojure/java.classpath "0.2.2"]]}
              :uberjar {:aot :all}}
-  :plugins [[lein-midje "3.1.3"]]
+  :plugins [[lein-midje "3.1.3"]
+            [com.palletops/uberimage "0.4.1"]]
   :repl-options {:init-ns user}
   :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"})
