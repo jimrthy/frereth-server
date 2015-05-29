@@ -33,4 +33,20 @@
   :plugins [[lein-midje "3.1.3"]
             [com.palletops/uberimage "0.4.1"]]
   :repl-options {:init-ns user}
-  :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"})
+  :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"}
+  ;; From lein-uberimage's README
+  ;; Can specify:
+  ;; :cmd - matches Dockerfile CMD
+  ;; :instructions - insert right after the Dockerfile's FROM (which, by
+  ;; definition, starts defining a new image)
+  ;; :files - map of {docker-image-target lein-project-source}
+  ;; :tag - something like "user/repo:tag"
+  ;; :base-image - name of the base image (defaults to pallet/java)
+  ;; https://github.com/zeromq/jzmq/issues/339 has Dockerfile snippets that might be useful
+  ;; for setting up a base image that's ready to be used for this
+  ;; Actually, https://github.com/zeromq/jzmq/blob/master/Dockerfile has the whole
+  ;; 10 yards. It's just for zmq 3.2 (which happens to be where jzmq is still sitting)
+
+  ;; https://registry.hub.docker.com/u/gsnewmark/jzmq/dockerfile/
+  ;; is probably the proper place to start
+  :uberimage {})
