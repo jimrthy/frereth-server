@@ -1,6 +1,6 @@
 (ns frereth-server.auth-socket-test
-  (:use midje.sweet)
-  (:require [frereth-server.system :as sys]
+  (:require [clojure.test :refer (are is deftest testing)]
+            [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
             ;;[zeromq.zmq :as mq]
             [cljeromq.constants :as mqk]
@@ -53,9 +53,9 @@ This *so* does not belong in here."
              (mq/send! "ping") ; Shouldn't matter what goes here
              (Thread/sleep 50) ; Should be plenty of time for it to shut down
 
-             (fact "Should be done"
+             (testing "Should be done"
                    (let [auth-thread (:authentication-thread world)]
-                     (.isAlive auth-thread) => false
+                     (is (not (.isAlive auth-thread)))
                      (when (.isAlive auth-thread)
                        (throw (RuntimeException. "Listener thread still alive"))))))]
   ;; Wow. This seems either really sweet or really sick.

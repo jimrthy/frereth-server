@@ -7,8 +7,7 @@
    [frereth-server.logging :as logging]
    [frereth-server.connection-manager :as connection-manager]
    [taoensso.timbre :as log]   
-   [zeromq.zmq :as mq])
-  #_(:gen-class))
+   [zeromq.zmq :as mq]))
 
 (defn defaults
   []
