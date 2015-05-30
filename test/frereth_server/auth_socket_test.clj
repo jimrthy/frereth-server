@@ -3,6 +3,7 @@
   (:require [frereth-server.system :as sys]
             [frereth-server.auth-socket :as auth]
             ;;[zeromq.zmq :as mq]
+            [cljeromq.constants :as mqk]
             [cljeromq.core :as mq]))
 
 (defn setup
@@ -11,9 +12,9 @@ Although this particular idea is half-baked and needs to move
 *way* down my priority list."
   [world]
   (let [ctx @(world :network-context)
-        s (mq/socket @ctx (:req (mq/const :socket-types)))
+        s (mq/socket! @ctx (:req (mqk/const :socket-types)))
         address (format "tcp://127.0.0.1:%d" (:auth (:ports world)))]
-    (mq/connect s address)
+    (mq/connect! s address)
     {:socket s}))
 
 (defn teardown 
@@ -40,8 +41,8 @@ This *so* does not belong in here."
 (defn req<->rep
   "Send a request to the authentication socket's auth port, return its response"
   [r s]
-  (mq/send s r)
-  (mq/recv-str s))
+  (mq/send! s r)
+  (mq/recv-str! s))
 
 ;; I don't particularly feel happy about using strings like this...
 ;; I feel like I should really be doing this with symbols, or
@@ -49,7 +50,7 @@ This *so* does not belong in here."
 (let [kill (fn [world locals]
              (reset! (:done @world) true)
              ;; TODO: But we do need a socket to send it to!
-             (mq/send "ping") ; Shouldn't matter what goes here
+             (mq/send! "ping") ; Shouldn't matter what goes here
              (Thread/sleep 50) ; Should be plenty of time for it to shut down
 
              (fact "Should be done"

@@ -19,14 +19,14 @@
                  ;; ...except that very likely means native libraries, so
                  ;; it gets more complicated. Still, we shouldn't be worrying
                  ;; about details like jeromq vs jzmq here.
-                 ;;[org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
+                 [org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
                  [org.clojure/clojure "1.7.0-RC1"]
                  [org.zeromq/cljzmq "0.1.4"]
                  [prismatic/schema "0.4.3"]]
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [[midje "1.6.3" :exclusions [joda-time]]
+                   :dependencies [[midje "1.6.3" :exclusions [joda-time]]  ; TODO: Go away
                                   [org.clojure/tools.namespace "0.2.10"]
                                   [org.clojure/java.classpath "0.2.2"]]}
              :uberjar {:aot :all}}
