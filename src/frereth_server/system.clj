@@ -8,7 +8,7 @@
    [frereth-server.connection-manager :as connection-manager]
    [taoensso.timbre :as log]   
    [zeromq.zmq :as mq])
-  (:gen-class))
+  #_(:gen-class))
 
 (defn defaults
   []
@@ -39,4 +39,3 @@
           :control-socket {:context :context
                            :url :control-ur}
           :principal-manager [:control-socket]}))))
-
