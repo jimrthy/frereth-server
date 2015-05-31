@@ -10,10 +10,13 @@
 (defn active?
   "The downside to this approach is that it short-circuits."
   [world]
-  (and
-   @(:network-context world)
-   @(:master-connection world)
-   (not @(:done world))))
+  (when-let [net-ctx (:network-context world)]
+    (when-let [master-conn (:master-connection world)]
+      (when-let [done (:done world)]
+        (and
+         @net-ctx
+         @master-conn
+         (not @done))))))
 
 (deftest start-stop []
   ;; Seems more than a little wrong to be using an atom here. Oh well.
@@ -31,4 +34,3 @@
         ;; deal with that tonight.
         (swap! world component/stop)
         (is (active? world) "World stopped")))))
-

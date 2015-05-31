@@ -1,8 +1,8 @@
 (ns frereth-server.connection-manager
   (:require [com.stuartsierra.component :as component]
             [frereth-server.comm :as comm]
-            [schema.core :as s])
-  (:gen-class))
+            [ribol.core :refer (raise)]
+            [schema.core :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -38,7 +38,11 @@
   "What users does the system know about?
 TODO: Add the ability to create new users and look them up."
   [system]
-  (keys @(:users system)))
+  (if-let [users-atom (:users system)]
+    (keys @users-atom)
+    (raise {:problem "Missing users atom"
+            :details system
+            :specifics (keys system)})))
 
 (defn existing-user?
   "Does the system know about this user?"
@@ -52,4 +56,4 @@ TODO: Add the ability to create new users and look them up."
 
 (defn new-directory
   []
-  (->Directory))
+  (map->Directory {}))

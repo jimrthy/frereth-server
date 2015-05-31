@@ -1,4 +1,4 @@
-(ns frereth-server.util-test
+(ns frereth-server.test-utils
   "Utilities to cut back on boiler-plate
 
 TODO: Rename this so it doesn't look like it's

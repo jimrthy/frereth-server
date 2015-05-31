@@ -8,7 +8,7 @@
 
 (s/defrecord ZmqContext [context thread-count :- s/Int]
   component/Lifecycle
-  (start 
+  (start
    [this]
    (let [ctx (zmq/context thread-count)]
      (assoc this :context ctx)))
@@ -125,7 +125,7 @@
 
 (defn new-action-socket
   []
-  (->ActionSocket))
+  (map->ActionSocket {}))
 
 (defn new-action-url
   [config]
@@ -133,7 +133,7 @@
 
 (defn new-auth-socket
   []
-  (->AuthSocket))
+  (map->AuthSocket {}))
 
 (defn new-auth-url
   [config]
@@ -141,7 +141,7 @@
 
 (defn new-control-socket
   []
-  (->ControlSocket))
+  (map->ControlSocket {}))
 
 (defn new-control-url
   []
