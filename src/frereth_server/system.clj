@@ -1,13 +1,14 @@
 (ns frereth-server.system
+  "Honestly, this should probably be considered obsolete."
   (:require
-   ;;[cljeromq.core :as mq]
+   #_[cljeromq.core :as mq]  ; Q: Why?
    [com.stuartsierra.component :as component]
    [frereth-server.auth-socket :as auth]
    [frereth-server.comm :as comm]
    [frereth-server.logging :as logging]
    [frereth-server.connection-manager :as connection-manager]
-   [taoensso.timbre :as log]   
-   [zeromq.zmq :as mq]))
+   [taoensso.timbre :as log]
+   #_[zeromq.zmq :as mq]))
 
 (defn defaults
   []

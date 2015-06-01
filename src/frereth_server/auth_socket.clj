@@ -1,15 +1,34 @@
 (ns frereth-server.auth-socket
-  (:require [zeromq.zmq :as mq]
+  "Messaging pieces for handling the authentication socket.
+
+This looks like it should be pretty general, and it probably
+should. But I'm starting with the specifics until I'm comfortable
+with the patterns involved."
+  (:require #_[zeromq.zmq :as mq]
+            [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
+            [clojure.core.async :as async :refer (<! <!! >! >!!)]
+            [frereth.common.schema :as common-schema]
             [ribol.core :refer (raise)]
+            [schema.core :as s]
             [taoensso.timbre :as log
              :refer [trace debug info warn error fatal spy with-log-level]])
-  (:gen-class))
+  (:import [org.zeromq ZMQ ZMQ$Context ZMQ$Poller ZMQ$Socket]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Schema
+
+(def message (s/either bytes s/Str))
+
+(def messages [message])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Internal
 
 (defn- read-message [s]
   (raise :not-implemented)
-  (comment (mq/recv-all-str s)))
+  (comment (mq/recv-all-str! s)))
 
 (defn- dispatcher [msg]
   "This is just screaming for something like cond.
@@ -67,7 +86,7 @@ thought."
 
   ;; Honestly, this approach is half-baked, at best.
   ;; If I have a list, I should probably EDN it and dispatch on that.
-  ;; Or something along those lines. Since it's an attempt at a 
+  ;; Or something along those lines. Since it's an attempt at a
   ;; function call.
   ;; If it's a general sequence, though, this approach makes total sense.
   (if-let [car (first msgs)]
@@ -81,29 +100,33 @@ thought."
   [echo]
   echo)
 
-(defn- send-message
-  "Like with read-message, this theoretically gets vaguely interesting 
-with multi-part messages.
-Oops. Backwards parameters."
-  [s msgs]
+(s/defn send-message!
+  "Like with read-message, this theoretically gets vaguely interesting
+with multi-part messages."
+  [s :- ZMQ$Socket
+   msgs :- (s/either s/Str messages)]
   (when (seq msgs)
     ;; Performance isn't a consideration, really.
     ;; Is it?
     ;; Not for authentication. We expect this to take a while.
     ;; By its very nature, it pretty much has to.
     (if (string? msgs)
-      (mq/send s msgs)
+      (mq/send! s msgs)
       (do
-        ;; Just assume that means it's a sequence.
-        ;; I hate to break this up like this, but it just is not
-        ;; a performance-critical section.
-        ;; Probably.
-        (log/trace (format "Sending: %s\nto\n%s" msgs s))
-        (mq/send s (first msgs :send-more))
-        (send-message (rest msgs))))))
+        ;; This loops over the message seq twice, which really
+        ;; isn't particularly efficient.
+        ;; Any alternative would be premature optimization
+        ;; I honestly don't expect this code to be used all
+        ;; that often, and almost definitely not for messages
+        ;; with tons of parts (which are just generally bad
+        ;; in the first place)
+        (doseq [msg (butlast msgs)]
+          (log/trace (format "Sending: %s\nto\n%s" msg s))
+          (mq/send! s msg :send-more))
+        (mq/send! s (last msgs))))))
 
 
-(defn- authenticator
+(s/defn authenticator
   "Deal with authentication requests.
 done-reference lets someone else trigger a 'stop' signal.
 What seems particularly obnoxious about this: I don't really care
@@ -125,7 +148,7 @@ assignment and don't surrender to laziness."
 
   (log/trace "Creating Listener")
   ;; FIXME: Rewrite this using with-socket.
-  (let [listener (mq/socket ctx :dealer)]
+  (let [listener (mq/socket! ctx :dealer)]
     (try
       ;; Note that this is really at the heart of how the server
       ;; works:
@@ -147,7 +170,7 @@ assignment and don't surrender to laziness."
       ;; Right now, I have other priorities.
       (log/trace "Binding Listener to Port " auth-port)
       ;; FIXME: What should this actually be listening on?
-      (mq/bind listener (format "tcp://*:%d" auth-port))
+      (mq/bind! listener (format "tcp://*:%d" auth-port))
 
       (raise :not-implemented)
       (comment (mq/with-poller [authenticator ctx listener]
@@ -169,12 +192,12 @@ assignment and don't surrender to laziness."
                      (log/trace "Polling authenticator...")
                      ;; poll for a request.
                      ;; Q: Do I need to specify a timeout?
-                     (mq/poll authenticator)
+                     (mq/poll! authenticator)
 
                      ;; That means that system/stop needs to send a "die" message
                      ;; to this port.
                      ;; Or reset done to true.
-                     ;; Still need the die message: otherwise we stay frozen at the 
+                     ;; Still need the die message: otherwise we stay frozen at the
                      ;; (poll)
 
                      ;; FIXME: Bind a specific socket to a specific port just for
@@ -186,8 +209,8 @@ assignment and don't surrender to laziness."
                      ;; For other message types, work through a login sequence.
                      ;; Possibly present a potential client with details about
                      ;; what to do/where to go next.
-                     (when (mq/check-poller authenticator 0 :pollin)
-                       (let [request (read-message listener)]
+                     (when (mq/check-poller authenticator 0 :pollin)  ; Q: What's this now?
+                       (let [request (read-message! listener)]
                          ;; I can see request being a lazy sequence.
                          ;; But (doall ...) is documented to realize the entire sequence.
                          ;; Here's a hint: it still returns a LazySeq, apparently
@@ -196,25 +219,25 @@ assignment and don't surrender to laziness."
                            (log/trace msg))
                          (log/trace "Dispatching response:\n")
                          (let [response (dispatch request)]
-                           (send-message listener response))))
+                           (send-message! listener response))))
                      (when (mq/check-poller authenticator 0 :pollerr)
                        (throw (RuntimeException. "What should happen here?")))))))
       (finally
-        (mq/set-linger listener 0)
-        (mq/close listener)))))
+        (mq/set-linger! listener 0)
+        (mq/close! listener)))))
 
 
-(defn runner
+(s/defn runner :- common-schema/async-chan
   "Set up the authenticator.
 ctx is the zmq context for the authenticator to listen on.
 done-reference is some sort of deref-able instance that will tell the thread to quit.
 This feels like an odd approach, but nothing more obvious springs to mind.
 This gets called by system/start. It needs system as a parameter to do
 its thing. Circular references are bad, mmkay?"
-  [ctx done-reference auth-port]
+  [ctx :- ZMQ$Context
+   done-reference
+   auth-port]
   (log/info (str "Kicking off the authentication runner thread in context: "
                  ctx "\nwaiting on Done Reference " done-reference))
-  ;; FIXME: Don't run a thread directly.
-  ;; Instead, go through an Executor.
-  (.start (Thread. (fn []
-                     (authenticator ctx done-reference auth-port)))))
+
+  (async/thread (authenticator ctx done-reference auth-port)))

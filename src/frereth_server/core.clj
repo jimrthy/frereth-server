@@ -1,14 +1,14 @@
 (ns frereth-server.core
   (:gen-class)
   (:require
-   ;;[cljeromq.core :as mq]
+   #_[cljeromq.core :as mq]
    [com.stuartsierra.component :as component]
    [frereth-server.config :as config]
    [frereth-server.system :as sys]
    [taoensso.timbre :as log :as log]
-   [zeromq.zmq :as mq]))
+   #_[zeromq.zmq :as mq]))
 
-(defn get-cpu-count 
+(defn get-cpu-count
   "How many CPUs are available?"
   []
   ;; Note that it's extremely overly simplistic to try to max out the

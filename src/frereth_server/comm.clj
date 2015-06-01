@@ -1,7 +1,8 @@
 (ns frereth-server.comm
-  (require [com.stuartsierra.component :as component]
+  (require [cljeromq.core :as mq]
+           [com.stuartsierra.component :as component]
            [schema.core :as s]
-           [zeromq.zmq :as zmq]))
+           #_[zeromq.zmq :as zmq]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -10,17 +11,19 @@
   component/Lifecycle
   (start
    [this]
-   (let [ctx (zmq/context thread-count)]
+   (let [ctx (mq/context thread-count)]
      (assoc this :context ctx)))
   (stop
    [this]
    (when context
-     (zmq/close context))
+     (mq/terminate! context))
    (assoc this :context nil)))
 
 (s/defrecord URI [protocol :- s/Str
                   address :- s/Str
                   port :- s/Int]
+  ;; TODO: This could really just as easily
+  ;; be a plain dictionary.
   component/Lifecycle
   (start [this] this)
   (stop [this] this))
@@ -35,18 +38,18 @@
   component/Lifecycle
   (start
    [this]
-   (let [sock (zmq/socket context (socket-type this))]
+   (let [sock (mq/socket! context (socket-type this))]
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
-     (zmq/set-router-mandatory sock 1)
-     (zmq/bind sock (build-url url))
+     (mq/set-router-mandatory! sock 1)
+     (mq/bind! sock (build-url url))
      (assoc this :socket sock)))
 
   (stop
    [this]
-   (zmq/set-linger socket 0)
-   (zmq/unbind socket (build-url url))
-   (zmq/close socket)
+   (mq/set-linger! socket 0)
+   (mq/unbind! socket (build-url url))
+   (mq/close! socket)
    (assoc this :socket nil)))
 
 (s/defrecord AuthSocket [context
@@ -55,18 +58,18 @@
   component/Lifecycle
   (start
    [this]
-   (let [sock (zmq/socket context (socket-type this))]
+   (let [sock (mq/socket! context (socket-type this))]
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
-     (zmq/set-router-mandatory sock 1)
-     (zmq/bind sock (build-url url))
+     (mq/set-router-mandatory! sock 1)
+     (mq/bind! sock (build-url url))
      (assoc this :socket sock)))
 
   (stop
    [this]
-   (zmq/set-linger socket 0)
-   (zmq/unbind socket (build-url url))
-   (zmq/close socket)
+   (mq/set-linger! socket 0)
+   (mq/unbind! socket (build-url url))
+   (mq/close! socket)
    (assoc this :socket nil)))
 
 (s/defrecord ControlSocket [context
@@ -75,15 +78,15 @@
   component/Lifecycle
   (start
    [this]
-   (let [sock (zmq/socket context (socket-type this))]
-     (zmq/bind sock (build-url url))
+   (let [sock (mq/socket! context (socket-type this))]
+     (mq/bind! sock (build-url url))
      (assoc this :socket sock)))
 
   (stop
    [this]
-   (zmq/set-linger socket 0)
-   (zmq/unbind socket (build-url url))
-   (zmq/close socket)
+   (mq/set-linger! socket 0)
+   (mq/unbind! socket (build-url url))
+   (mq/close! socket)
    (assoc this :socket nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
