@@ -7,17 +7,26 @@
   :dependencies [[byte-transforms "0.1.4"]
                  [com.frereth/common "0.0.1-SNAPSHOT"]
                  [com.postspectacular/rotor "0.1.0"]
-                 [com.stuartsierra/component "0.2.3"]]
+                 [com.stuartsierra/component "0.2.3"]
+                 ;; I'm not using these, but com.palletops/uberimage and lein-ancient
+                 ;; are competing over older versions
+                 [org.apache.httpcomponents/httpclient "4.4.1"]
+                 [org.apache.httpcomponents/httpcore "4.4.1"]
+                 [org.apache.httpcomponents/httpmime "4.4.1"]]
   ;; Q: Is there a good way to move this up into common?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))]
   :main frereth-server.core
   :profiles {:dev {:source-paths ["dev"]
-                   :plugins [[org.clojure/tools.namespace "0.2.10"]
+                   :plugins [[org.clojure/tools.namespace "0.2.10" :exclusions [org.clojure/clojure]]
                              [org.clojure/java.classpath "0.2.2"]]}
              :uberjar {:aot :all}}
   ;; If I'm going to be using this, it makes a lot more sense to move it
   ;; into one of my personal profiles
-  :plugins [[com.palletops/uberimage "0.4.1" :exclusions [clj-time]]]
+  :plugins [[com.palletops/uberimage "0.4.1" :exclusions [clj-http
+                                                          clj-time
+                                                          org.apache.httpcomponents/httpclient
+                                                          org.apache.httpcomponents/httpcore
+                                                          org.clojure/clojure]]]
   :repl-options {:init-ns user}
   :repositories {"sonatype-nexus-snapshots" "https://oss.sonatype.org/content/repositories/snapshots"}
   ;; From lein-uberimage's README
