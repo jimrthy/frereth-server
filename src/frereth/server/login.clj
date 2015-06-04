@@ -1,4 +1,4 @@
-(ns frereth-server.login
+(ns frereth.server.login
   (:gen-class))
 
 ;;;; Handle login-style requests.

@@ -15,7 +15,7 @@
                  [org.apache.httpcomponents/httpmime "4.4.1"]]
   ;; Q: Is there a good way to move this up into common?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))]
-  :main frereth-server.core
+  :main frereth.server.core
   :profiles {:dev {:source-paths ["dev"]
                    :plugins [[org.clojure/tools.namespace "0.2.10" :exclusions [org.clojure/clojure]]
                              [org.clojure/java.classpath "0.2.2"]]}

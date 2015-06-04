@@ -1,8 +1,7 @@
-(ns frereth-server.comm
+(ns frereth.server.comm
   (require [cljeromq.core :as mq]
            [com.stuartsierra.component :as component]
-           [schema.core :as s]
-           #_[zeromq.zmq :as zmq]))
+           [schema.core :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema

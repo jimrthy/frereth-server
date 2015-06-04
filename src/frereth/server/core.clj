@@ -1,15 +1,13 @@
-(ns frereth-server.core
+(ns frereth.server.core
   (:gen-class)
   (:require
-   #_[cljeromq.core :as mq]
    [com.stuartsierra.component :as component]
-   [frereth-server.config :as config]
-   [frereth-server.system :as sys]
-   [taoensso.timbre :as log :as log]
-   #_[zeromq.zmq :as mq]))
+   [frereth.server.system :as sys]
+   [taoensso.timbre :as log :as log]))
 
 (defn get-cpu-count
-  "How many CPUs are available?"
+  "How many CPUs are available?
+  TODO: This doesn't belong in here"
   []
   ;; Note that it's extremely overly simplistic to try to max out the
   ;; threads for message processing, for most intents and purposes.

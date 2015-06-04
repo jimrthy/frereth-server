@@ -1,4 +1,4 @@
-(ns frereth-server.auth-socket
+(ns frereth.server.auth-socket
   "Messaging pieces for handling the authentication socket.
 
 This looks like it should be pretty general, and it probably

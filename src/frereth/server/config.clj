@@ -1,4 +1,4 @@
-(ns frereth-server.config)
+(ns frereth.server.config)
 
 ;;;; FIXME: This all needs to go away (yeah, I know, there isn't much).
 ;;;; Anything that references it needs to get a system parameter instead.

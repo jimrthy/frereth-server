@@ -1,4 +1,4 @@
-(ns frereth-server.authorization
+(ns frereth.server.authorization
   (:require [ribol.core :refer (raise)])
   (:gen-class))
 

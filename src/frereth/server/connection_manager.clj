@@ -1,6 +1,6 @@
-(ns frereth-server.connection-manager
+(ns frereth.server.connection-manager
   (:require [com.stuartsierra.component :as component]
-            [frereth-server.comm :as comm]
+            [frereth.server.comm :as comm]
             [ribol.core :refer (raise)]
             [schema.core :as s]))
 

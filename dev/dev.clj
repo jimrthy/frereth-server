@@ -6,7 +6,7 @@
             [clojure.test :as test]
             [clojure.tools.namespace.repl :refer (refresh refresh-all)]
             [com.stuartsierra.component :as component]
-            [frereth-server.system :as system]
+            [frereth.server.system :as system]
             [schema.core :as s]))
 
 (def system nil)
