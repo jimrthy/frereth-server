@@ -1,8 +1,17 @@
 (ns frereth.server.system
   "Honestly, this should probably be considered obsolete."
   (:require
+   [com.stuartsierra.component :as component]
    [component-dsl.system :as cpt-dsl]
-   [taoensso.timbre :as log]))
+   [schema.core :as s]
+   [taoensso.timbre :as log])
+  (import [com.stuartsierra.component SystemMap]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Schema
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Internal
 
 (defn defaults
   []
@@ -14,7 +23,10 @@
    ;; For a local one...probably not so much
    :zmq-thread-count 1})
 
-(defn init
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Public
+
+(s/defn init :- SystemMap
   [overrides]
   (let [description {:structure {:action-socket 'frereth.server.comm/new-action-socket
                                  :auth-socket 'frereth.server.comm/new-auth-socket
@@ -22,7 +34,7 @@
                                  :context 'frereth.server.comm/new-context
                                  :control-socket 'frereth.server.comm/new-control-socket
                                  :control-url 'frereth.server.comm/new-control-url
-                                 :done promise  ; TODO: This can't possibly work
+                                 :done 'frereth.server.sentinal/ctor
                                  :logger 'frereth.server.logging/new
                                  :principal-manager 'frereth.server.connection-manager/new-directory}
                      :dependencies {:action-socket {:context :context
@@ -32,5 +44,5 @@
                                     :control-socket {:context :context
                                                      :url :control-ur}
                                     :principal-manager [:control-socket]}}
-        options (into defaults overrides)]
+        options (into (defaults) overrides)]
     (cpt-dsl/build description options)))
