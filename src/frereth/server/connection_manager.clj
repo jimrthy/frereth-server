@@ -55,5 +55,5 @@ TODO: Add the ability to create new users and look them up."
                            (into current credentials))))
 
 (defn new-directory
-  []
+  [_]
   (map->Directory {}))

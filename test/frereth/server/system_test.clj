@@ -1,8 +1,8 @@
-(ns frereth-server.system-test
+(ns frereth.server.system-test
   (:require [clojure.test :refer (are deftest is testing)]
- [com.stuartsierra.component :as component]
+            [com.stuartsierra.component :as component]
             [ribol.core :refer (raise)]
- [frereth-server.system :as sys]))
+            [frereth.server.system :as sys]))
 
 ;;;; What sort of tests (if any) make sense here?
 ;;;; Maybe just verify that setup/teardown doesn't throw any errors?

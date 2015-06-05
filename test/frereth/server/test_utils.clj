@@ -1,10 +1,10 @@
-(ns frereth-server.test-utils
+(ns frereth.server.test-utils
   "Utilities to cut back on boiler-plate
 
 TODO: Rename this so it doesn't look like it's
 tests for a utils namespace."
   (:require [com.stuartsierra.component :as component]
-            [frereth-server.system :as sys]))
+            [frereth.server.system :as sys]))
 
 (defn wrap [test]
   "Basic setup/teardown

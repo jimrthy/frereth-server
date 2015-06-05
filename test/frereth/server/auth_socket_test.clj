@@ -1,8 +1,7 @@
-(ns frereth-server.auth-socket-test
+(ns frereth.server.auth-socket-test
   (:require [clojure.test :refer (are is deftest testing)]
-            [frereth-server.system :as sys]
-            [frereth-server.auth-socket :as auth]
-            ;;[zeromq.zmq :as mq]
+            [frereth.server.system :as sys]
+            [frereth.server.auth-socket :as auth]
             [cljeromq.constants :as mqk]
             [cljeromq.core :as mq]))
 
@@ -17,7 +16,7 @@ Although this particular idea is half-baked and needs to move
     (mq/connect! s address)
     {:socket s}))
 
-(defn teardown 
+(defn teardown
   "It's tough to believe that expectations doesn't build this in...
 but I don't see it anywhere"
   [locals]
@@ -87,8 +86,8 @@ This *so* does not belong in here."
                                                    ;; Q: Can I make a client dumber than this?
                                                    ;; A: I really shouldn't challenge
                                                    ;; myself that way.
-                                                   ["icanhaz?" "me-speekz" 
-                                                    [:youre-kidding nil "login-id" nil]] 
+                                                   ["icanhaz?" "me-speekz"
+                                                    [:youre-kidding nil "login-id" nil]]
                                                    ["yarly" "ib" "test"]
 
                                                    ["yarly" "Really secure signature"]
@@ -107,7 +106,7 @@ Actually, I need lots and lots of these.
 And something that builds a million threads doing this sort of thing
 and throws them all at the server at once.
 Baby steps."
-(comment (let [path-log (fn 
+(comment (let [path-log (fn
                           [world locals]
                           ;; Q: Why am I even thinking about subjecting myself to this?
                           ;; A: Because this is what unit tests are for.

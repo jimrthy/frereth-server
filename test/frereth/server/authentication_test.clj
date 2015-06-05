@@ -1,9 +1,9 @@
-(ns frereth-server.authentication-test
+(ns frereth.server.authentication-test
   (:require [clojure.pprint :refer (pprint)]  ; TODO: Switch to puget
             [clojure.test :refer (are deftest is testing)]
-            [frereth-server.authentication :as auth]
+            [frereth.server.authentication :as auth]
             ;; Do I have any actual use for util in this?
-            [frereth-server.test-utils :as util]
+            [frereth.server.test-utils :as util]
             [ribol.core :refer (manage on raise)])
   (:import [clojure.lang ExceptionInfo]))
 
