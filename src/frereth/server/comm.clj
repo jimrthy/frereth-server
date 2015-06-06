@@ -72,9 +72,9 @@ instead of jammed all together"
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
      (mq/set-router-mandatory! sock true)
-     (let [url (build-url url)]
-       (log/debug "Trying to bind" sock "to" url)
-       (mq/bind! sock url))
+     (let [address (build-url url)]
+       (log/debug "Trying to bind" sock "to" address "based on" url)
+       (mq/bind! sock address))
      (assoc this :socket sock)))
 
   (stop
@@ -122,15 +122,16 @@ instead of jammed all together"
   :router)
 
 (s/defn build-global-url :- URI
-  [config :- {:ports {s/Keyword s/Int}
-              s/Any s/Any}
-   port-key :- s/Any]
-  (let [protocol "tcp"
-        address "*"
-        port (-> config :ports port-key)]
-    (strict-map->URI {:protocol protocol
-                      :address address
-                      :port port})))
+  "Q: Why did I name it this way?"
+  [{:keys [port protocol address]
+    :as config
+    :or {protocol "tcp"
+         address "localhost"}} :- {:ports {s/Keyword s/Int}
+                                   s/Any s/Any}]
+  (log/debug "Trying to set up a URL based on" config)
+  (strict-map->URI {:protocol protocol
+                    :address address
+                    :port port}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
@@ -147,15 +148,17 @@ instead of jammed all together"
 
 (s/defn new-action-url :- URI
   [config]
-  (build-global-url config :action))
+  (build-global-url config))
 
 (s/defn new-auth-socket :- AuthSocket
   [_]
+  (log/warn "FIXME: Move to auth_socket")
   (map->AuthSocket {}))
 
 (s/defn new-auth-url :- s/Str
   [config]
-  (build-global-url config :auth))
+  (log/debug "Setting up the Auth Socket URL based on" config)
+  (build-global-url config))
 
 (s/defn new-control-socket :- ControlSocket
   [_]

@@ -4,16 +4,16 @@
 This looks like it should be pretty general, and it probably
 should. But I'm starting with the specifics until I'm comfortable
 with the patterns involved."
-  (:require #_[zeromq.zmq :as mq]
-            [cljeromq.core :as mq]
+  (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
             [clojure.core.async :as async :refer (<! <!! >! >!!)]
-            [frereth.common.schema :as common-schema]
+            [com.frereth.common.schema :as common-schema]
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log
              :refer [trace debug info warn error fatal spy with-log-level]])
+  ;; TODO: Switch to the mq aliases
   (:import [org.zeromq ZMQ ZMQ$Context ZMQ$Poller ZMQ$Socket]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
