@@ -21,7 +21,8 @@ TODO: Pretty much every one of these should
 be set by environment variables instead"
   []
   (let [default-sock {:port :override-this
-                      :address "localhost"
+                      ;; Must use numeric IP address
+                      :address #_"localhost" "127.0.0.1"
                       :protocol "tcp"}]
     {:action-socket nil
      :auth-socket nil
@@ -55,7 +56,7 @@ be set by environment variables instead"
    :auth-socket {:context :context
                  :url :auth-url}
    :control-socket {:context :context
-                    :url :control-ur}
+                    :url :control-url}
    :principal-manager [:control-socket]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,9 +4,12 @@
 TODO: These should be split up into a sub-namespace
 instead of jammed all together"
   (:require [cljeromq.core :as mq]
+            [com.frereth.common.util :as util]
             [com.stuartsierra.component :as component]
+            [ribol.core :refer (raise)]
             [schema.core :as s]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:import [clojure.lang ExceptionInfo]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -40,17 +43,17 @@ instead of jammed all together"
 (defmulti socket-type
   #(class %))
 
-(s/defrecord ActionSocket [context :- mq/Context
+(s/defrecord ActionSocket [context :- ZmqContext
                            socket :- mq/Socket
                            url :- URI]
   component/Lifecycle
   (start
    [this]
    (let [type (socket-type this)
-         sock (mq/socket! context type)]
+         sock (mq/socket! (:context context) type)]
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
-     (mq/set-router-mandatory! sock 1)
+     (mq/set-router-mandatory! sock true)
      (mq/bind! sock (build-url url))
      (assoc this :socket sock)))
 
@@ -74,7 +77,14 @@ instead of jammed all together"
      (mq/set-router-mandatory! sock true)
      (let [address (build-url url)]
        (log/debug "Trying to bind" sock "to" address "based on" url)
-       (mq/bind! sock address))
+       (try
+         (mq/bind! sock address)
+         (catch ExceptionInfo ex
+           (comment (log/warn "Yes, I'm handling the failed binding"))
+           (raise {:problem ex
+                   :details (.getData ex)
+                   :url-attempted url
+                   :url-representation address}))))
      (assoc this :socket sock)))
 
   (stop
@@ -90,14 +100,21 @@ instead of jammed all together"
   component/Lifecycle
   (start
    [this]
-   (let [sock (mq/socket! (:context context) (socket-type this))]
+   (let [ctx (:context context)
+         sock-type (socket-type this)
+         _ (log/debug "Creating a" sock-type "socket for" ctx)
+         sock (mq/socket! ctx sock-type)]
      (mq/bind! sock (build-url url))
      (assoc this :socket sock)))
 
   (stop
    [this]
    (mq/set-linger! socket 0)
-   (mq/unbind! socket (build-url url))
+   ;; Can't unbind an inproc socket
+   (comment
+     (let [addr (build-url url)]
+       (log/debug "Trying to unbind the Control Socket at" addr)
+       (mq/unbind! socket addr)))
    (mq/close! socket)
    (assoc this :socket nil)))
 
@@ -113,11 +130,15 @@ instead of jammed all together"
          (when port
            (str ":" port)))))
 
+(defmethod socket-type ActionSocket
+  [_]
+  :router)
+
 (defmethod socket-type AuthSocket
   [_]
   :router)
 
-(defmethod socket-type ActionSocket
+(defmethod socket-type ControlSocket
   [_]
   :router)
 
@@ -128,7 +149,7 @@ instead of jammed all together"
     :or {protocol "tcp"
          address "localhost"}} :- {:ports {s/Keyword s/Int}
                                    s/Any s/Any}]
-  (log/debug "Trying to set up a URL based on" config)
+  (log/debug "Trying to set up a URL based on" (util/pretty config))
   (strict-map->URI {:protocol protocol
                     :address address
                     :port port}))
