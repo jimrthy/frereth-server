@@ -12,20 +12,8 @@
 (defn active?
   "The downside to this approach is that it short-circuits."
   [world]
-  (when-let [net-ctx (:context (:context world))]
-    (when-let [master-conn (:socket (:control-socket world))]
-      ;; FIXME: This breaks my unit test.
-      ;; I should have everything pending on this.
-      ;; When something realizes it, everything else
-      ;; can shut down.
-      ;; But we can shut down without it.
-      ;; Besides...this isn't realized before we're
-      ;; started, but we're definitely not active then
-      ;; So maybe this is all I want
-      ;; TODO: Decide how to work around this
-      (log/warn "Check for :done!")
-      (comment (-> world :done :done realized? not))
-      true)))
+  (and (-> world :context :context)
+       (-> world :control-socket :socket)))
 
 (deftest start-stop []
   ;; Seems more than a little wrong to be using an atom here. Oh well.
