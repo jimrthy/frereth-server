@@ -43,6 +43,9 @@ instead of jammed all together"
 (defmulti socket-type
   #(class %))
 
+;;; TODO: These next 3 records needs to collapse into one.
+;;; Or two, at the most. Since the ControlSocket should
+;;; probably be inproc.
 (s/defrecord ActionSocket [context :- ZmqContext
                            socket :- mq/Socket
                            url :- URI]
@@ -59,9 +62,10 @@ instead of jammed all together"
 
   (stop
    [this]
-   (mq/set-linger! socket 0)
-   (mq/unbind! socket (build-url url))
-   (mq/close! socket)
+   (when socket
+     (mq/set-linger! socket 0)
+     (mq/unbind! socket (build-url url))
+     (mq/close! socket))
    (assoc this :socket nil)))
 
 (s/defrecord AuthSocket [context :- ZmqContext
@@ -89,9 +93,10 @@ instead of jammed all together"
 
   (stop
    [this]
-   (mq/set-linger! socket 0)
-   (mq/unbind! socket (build-url url))
-   (mq/close! socket)
+   (when socket
+     (mq/set-linger! socket 0)
+     (mq/unbind! socket (build-url url))
+     (mq/close! socket))
    (assoc this :socket nil)))
 
 (s/defrecord ControlSocket [context :- ZmqContext
@@ -109,13 +114,14 @@ instead of jammed all together"
 
   (stop
    [this]
-   (mq/set-linger! socket 0)
-   ;; Can't unbind an inproc socket
-   (comment
-     (let [addr (build-url url)]
-       (log/debug "Trying to unbind the Control Socket at" addr)
-       (mq/unbind! socket addr)))
-   (mq/close! socket)
+   (when socket
+     (mq/set-linger! socket 0)
+     ;; Can't unbind an inproc socket
+     (comment
+       (let [addr (build-url url)]
+         (log/debug "Trying to unbind the Control Socket at" addr)
+         (mq/unbind! socket addr)))
+     (mq/close! socket))
    (assoc this :socket nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

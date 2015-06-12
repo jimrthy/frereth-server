@@ -227,7 +227,7 @@ assignment and don't surrender to laziness."
         (mq/close! listener)))))
 
 
-(s/defn runner :- common-schema/async-chan
+(s/defn runner :- common-schema/async-channel
   "Set up the authenticator.
 ctx is the zmq context for the authenticator to listen on.
 done-reference is some sort of deref-able instance that will tell the thread to quit.

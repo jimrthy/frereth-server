@@ -1,5 +1,8 @@
 (ns frereth.server.system
-  "Honestly, this should probably be considered obsolete."
+  "Honestly, this should probably be considered obsolete.
+
+Or, at least, pretty much everything in here should be
+refactored to use my component-dsl"
   (:require
    [com.frereth.common.util :as util]
    [com.stuartsierra.component :as component]
