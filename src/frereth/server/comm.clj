@@ -138,7 +138,7 @@ instead of jammed all together"
 
 (defmethod socket-type ActionSocket
   [_]
-  :router)
+  #_:router :rep)
 
 (defmethod socket-type AuthSocket
   [_]

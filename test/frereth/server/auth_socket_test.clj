@@ -144,3 +144,8 @@ Baby steps."
                                              (req<->rep ['yarly "Really secure signature"])))
                             (expect "RDYPLYR1"
                                     (req<->rep ['icanhaz? 'play]))))]))
+
+
+(comment
+  (let [s (-> system :action-socket :socket)]
+    (mq/raw-recv! s :dont-wait)))
