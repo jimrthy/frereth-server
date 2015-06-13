@@ -14,6 +14,7 @@
                  [org.apache.httpcomponents/httpcore "4.4.1"]
                  [org.apache.httpcomponents/httpmime "4.4.1"]]
   ;; Q: Is there a good way to move this up into common?
+  ;; Better Q: Now that I've copied it into common, do I still need this here and in client?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))]
   :main frereth.server.core
   :profiles {:dev {:source-paths ["dev"]
