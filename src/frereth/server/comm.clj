@@ -4,12 +4,15 @@
 TODO: These should be split up into a sub-namespace
 instead of jammed all together"
   (:require [cljeromq.core :as mq]
+            [com.frereth.common.communication :as comm]
             [com.frereth.common.util :as util]
             [com.stuartsierra.component :as component]
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log])
-  (:import [clojure.lang ExceptionInfo]))
+  (:import [clojure.lang ExceptionInfo]
+           ;; For now, I'm switching this to a plain ol' hashmap
+           #_[com.frereth.common.communication URI]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -28,18 +31,6 @@ instead of jammed all together"
      (mq/terminate! context))
    (assoc this :context nil)))
 
-(s/defrecord URI [protocol :- s/Str
-                  address :- s/Str
-                  port :- s/Int]
-  ;; TODO: This could really just as easily
-  ;; be a plain dictionary.
-  ;; More importantly, it conflicts with native
-  ;; Java's URI. This will be confusing
-  component/Lifecycle
-  (start [this] this)
-  (stop [this] this))
-
-(declare build-url)
 (defmulti socket-type
   #(class %))
 
@@ -48,7 +39,7 @@ instead of jammed all together"
 ;;; probably be inproc.
 (s/defrecord ActionSocket [context :- ZmqContext
                            socket :- mq/Socket
-                           url :- URI]
+                           url :- comm/URI]
   component/Lifecycle
   (start
    [this]
@@ -57,20 +48,20 @@ instead of jammed all together"
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
      (mq/set-router-mandatory! sock true)
-     (mq/bind! sock (build-url url))
+     (mq/bind! sock (comm/build-url url))
      (assoc this :socket sock)))
 
   (stop
    [this]
    (when socket
      (mq/set-linger! socket 0)
-     (mq/unbind! socket (build-url url))
+     (mq/unbind! socket (comm/build-url url))
      (mq/close! socket))
    (assoc this :socket nil)))
 
 (s/defrecord AuthSocket [context :- ZmqContext
                          socket :- mq/Socket
-                         url :- URI]
+                         url :- comm/URI]
   component/Lifecycle
   (start
    [this]
@@ -79,7 +70,7 @@ instead of jammed all together"
      ;; TODO: Make this another option. It's really only
      ;; for debugging.
      (mq/set-router-mandatory! sock true)
-     (let [address (build-url url)]
+     (let [address (comm/build-url url)]
        (log/debug "Trying to bind" sock "to" address "based on" url)
        (try
          (mq/bind! sock address)
@@ -95,13 +86,13 @@ instead of jammed all together"
    [this]
    (when socket
      (mq/set-linger! socket 0)
-     (mq/unbind! socket (build-url url))
+     (mq/unbind! socket (comm/build-url url))
      (mq/close! socket))
    (assoc this :socket nil)))
 
 (s/defrecord ControlSocket [context :- ZmqContext
                             socket :- mq/Socket
-                            url :- URI]
+                            url :- comm/URI]
   component/Lifecycle
   (start
    [this]
@@ -109,7 +100,7 @@ instead of jammed all together"
          sock-type (socket-type this)
          _ (log/debug "Creating a" sock-type "socket for" ctx)
          sock (mq/socket! ctx sock-type)]
-     (mq/bind! sock (build-url url))
+     (mq/bind! sock (comm/build-url url))
      (assoc this :socket sock)))
 
   (stop
@@ -118,7 +109,7 @@ instead of jammed all together"
      (mq/set-linger! socket 0)
      ;; Can't unbind an inproc socket
      (comment
-       (let [addr (build-url url)]
+       (let [addr (comm/build-url url)]
          (log/debug "Trying to unbind the Control Socket at" addr)
          (mq/unbind! socket addr)))
      (mq/close! socket))
@@ -127,18 +118,9 @@ instead of jammed all together"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Utilities
 
-(s/defn build-url :- s/Str
-  [url :- URI]
-  (let [port (:port url)]
-    (str (:protocol url) "://"
-         (:address url)
-         ;; port is meaningless for inproc
-         (when port
-           (str ":" port)))))
-
 (defmethod socket-type ActionSocket
   [_]
-  :router #_:rep)
+  :router)
 
 (defmethod socket-type AuthSocket
   [_]
@@ -148,7 +130,7 @@ instead of jammed all together"
   [_]
   :router)
 
-(s/defn build-global-url :- URI
+(s/defn build-global-url :- comm/URI
   "Q: Why did I name it this way?"
   [{:keys [port protocol address]
     :as config
@@ -156,9 +138,12 @@ instead of jammed all together"
          address "localhost"}} :- {:ports {s/Keyword s/Int}
                                    s/Any s/Any}]
   (log/debug "Trying to set up a URL based on" (util/pretty config))
-  (strict-map->URI {:protocol protocol
-                    :address address
-                    :port port}))
+  (comment (comm/strict-map->URI {:protocol protocol
+                                  :address address
+                                  :port port}))
+  {:protocol protocol
+   :address address
+   :port port})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
@@ -173,7 +158,7 @@ instead of jammed all together"
   [_]
   (map->ActionSocket {}))
 
-(s/defn new-action-url :- URI
+(s/defn new-action-url :- comm/URI
   [config]
   (build-global-url config))
 
@@ -191,8 +176,11 @@ instead of jammed all together"
   [_]
   (map->ControlSocket {}))
 
-(s/defn new-control-url :- URI
+(s/defn new-control-url :- comm/URI
   [_]
-  (strict-map->URI {:protocol "inproc"
-                    :address "local"
-                    :port nil}))
+  (comment (strict-map->URI {:protocol "inproc"
+                             :address "local"
+                             :port nil}))
+  {:protocol "inproc"
+   :address "local"
+   :port nil})
