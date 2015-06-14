@@ -10,9 +10,7 @@ instead of jammed all together"
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log])
-  (:import [clojure.lang ExceptionInfo]
-           ;; For now, I'm switching this to a plain ol' hashmap
-           #_[com.frereth.common.communication URI]))
+  (:import [clojure.lang ExceptionInfo]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -32,6 +30,7 @@ instead of jammed all together"
    (assoc this :context nil)))
 
 (defmulti socket-type
+  ;; Q: Why didn't I just use class here?
   #(class %))
 
 ;;; TODO: These next 3 records needs to collapse into one.
@@ -138,9 +137,6 @@ instead of jammed all together"
          address "localhost"}} :- {:ports {s/Keyword s/Int}
                                    s/Any s/Any}]
   (log/debug "Trying to set up a URL based on" (util/pretty config))
-  (comment (comm/strict-map->URI {:protocol protocol
-                                  :address address
-                                  :port port}))
   {:protocol protocol
    :address address
    :port port})
@@ -178,9 +174,6 @@ instead of jammed all together"
 
 (s/defn new-control-url :- comm/URI
   [_]
-  (comment (strict-map->URI {:protocol "inproc"
-                             :address "local"
-                             :port nil}))
   {:protocol "inproc"
    :address "local"
    :port nil})
