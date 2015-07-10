@@ -17,9 +17,11 @@
   ;; Better Q: Now that I've copied it into common, do I still need this here and in client?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))]
   :main frereth.server.core
-  :profiles {:dev {:source-paths ["dev"]
+  :profiles {:dev {:dependencies [[org.clojure/java.classpath "0.2.2"
+                                   :exclusions [org.clojure/clojure]]]
                    :plugins [[org.clojure/tools.namespace "0.2.10" :exclusions [org.clojure/clojure]]
-                             [org.clojure/java.classpath "0.2.2"]]}
+                             #_[org.clojure/java.classpath "0.2.2"]]
+                   :source-paths ["dev"]}
              :uberjar {:aot :all}}
   ;; If I'm going to be using this, it makes a lot more sense to move it
   ;; into one of my personal profiles
