@@ -1,7 +1,7 @@
-(ns frereth.server.auth-socket-test
+(ns com.frereth.server.auth-socket-test
   (:require [clojure.test :refer (are is deftest testing)]
-            [frereth.server.system :as sys]
-            [frereth.server.auth-socket :as auth]
+            [com.frereth.server.system :as sys]
+            [com.frereth.server.auth-socket :as auth]
             [cljeromq.constants :as mqk]
             [cljeromq.core :as mq]))
 

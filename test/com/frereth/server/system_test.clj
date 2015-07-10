@@ -1,8 +1,8 @@
-(ns frereth.server.system-test
+(ns com.frereth.server.system-test
   (:require [clojure.test :refer (are deftest is testing)]
             [com.frereth.common.util :as util]
+            [com.frereth.server.system :as sys]
             [com.stuartsierra.component :as component]
-            [frereth.server.system :as sys]
             [ribol.core :refer (raise)]
             [taoensso.timbre :as log]))
 
