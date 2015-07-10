@@ -1,4 +1,4 @@
-(ns frereth.server.logging
+(ns com.frereth.server.logging
   (require [com.postspectacular.rotor :as rotor]
            [com.stuartsierra.component :as component]
            [taoensso.timbre :as log
