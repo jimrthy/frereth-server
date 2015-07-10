@@ -38,16 +38,16 @@ be set by environment variables instead"
      :principal-manager nil}))
 
 (defn structure []
-  {:action-socket 'frereth.server.comm/new-action-socket
-   :auth-socket 'frereth.server.comm/new-auth-socket
-   :action-url 'frereth.server.comm/new-action-url
-   :auth-url 'frereth.server.comm/new-auth-url
-   :context 'frereth.server.comm/new-context
-   :control-socket 'frereth.server.comm/new-control-socket
-   :control-url 'frereth.server.comm/new-control-url
-   :done 'frereth.server.sentinal/ctor
-   :logger 'frereth.server.logging/ctor
-   :principal-manager 'frereth.server.connection-manager/new-directory})
+  '{:action-socket com.frereth.server.comm/new-action-socket
+    :auth-socket com.frereth.server.comm/new-auth-socket
+    :action-url com.frereth.server.comm/new-action-url
+    :auth-url com.frereth.server.comm/new-auth-url
+    :context com.frereth.server.comm/new-context
+    :control-socket com.frereth.server.comm/new-control-socket
+    :control-url com.frereth.server.comm/new-control-url
+    :done com.frereth.server.sentinal/ctor
+    :logger com.frereth.server.logging/ctor
+    :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
   {:action-socket {:context :context
