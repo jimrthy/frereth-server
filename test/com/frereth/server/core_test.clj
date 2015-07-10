@@ -1,6 +1,6 @@
-(ns frereth.server.core-test
+(ns com.frereth.server.core-test
   (:require [clojure.test :refer (are deftest is)]
-            [frereth.server.core :refer :all]))
+            [com.frereth.server.core :refer :all]))
 
 (deftest basic-equality []
   (is (= 1 1) "Reality is real")

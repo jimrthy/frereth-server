@@ -1,4 +1,4 @@
-(ns frereth.server.auth-socket
+(ns com.frereth.server.auth-socket
   "Messaging pieces for handling the authentication socket.
 
 This looks like it should be pretty general, and it probably
@@ -12,9 +12,7 @@ with the patterns involved."
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log
-             :refer [trace debug info warn error fatal spy with-log-level]])
-  ;; TODO: Switch to the mq aliases
-  (:import [org.zeromq ZMQ ZMQ$Context ZMQ$Poller ZMQ$Socket]))
+             :refer [trace debug info warn error fatal spy with-log-level]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
@@ -103,7 +101,7 @@ thought."
 (s/defn send-message!
   "Like with read-message, this theoretically gets vaguely interesting
 with multi-part messages."
-  [s :- ZMQ$Socket
+  [s :- mq/Socket
    msgs :- (s/either s/Str messages)]
   (when (seq msgs)
     ;; Performance isn't a consideration, really.
@@ -234,7 +232,7 @@ done-reference is some sort of deref-able instance that will tell the thread to 
 This feels like an odd approach, but nothing more obvious springs to mind.
 This gets called by system/start. It needs system as a parameter to do
 its thing. Circular references are bad, mmkay?"
-  [ctx :- ZMQ$Context
+  [ctx :- mq/Context
    done-reference
    auth-port]
   (log/info (str "Kicking off the authentication runner thread in context: "

@@ -1,4 +1,4 @@
-(ns frereth.server.comm
+(ns com.frereth.server.comm
   "All of my socket handling
 
 TODO: These should be split up into a sub-namespace
@@ -14,6 +14,8 @@ instead of jammed all together"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
+;;; Big swatch of this has already moved to frereth.common
+;;; TODO: Get with the program and eliminate the duplication
 
 (s/defrecord ZmqContext [context :- mq/Context
                          thread-count :- s/Int]

@@ -1,4 +1,4 @@
-(ns frereth.server.sentinal
+(ns com.frereth.server.sentinal
   "Add a flag to tell everything to shut down"
   (:require [com.stuartsierra.component :as component]
             [schema.core :as s]))

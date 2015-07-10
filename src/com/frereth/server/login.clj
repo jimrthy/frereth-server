@@ -1,4 +1,4 @@
-(ns frereth.server.login
+(ns com.frereth.server.login
   )
 
 ;;;; Handle login-style requests.

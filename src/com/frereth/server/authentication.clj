@@ -1,6 +1,6 @@
-(ns frereth.server.authentication
+(ns com.frereth.server.authentication
   (:require [clojure.pprint :refer (pprint)]
-            [frereth.server.connection-manager :as connection-manager]
+            [com.frereth.server.connection-manager :as connection-manager]
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log]))
