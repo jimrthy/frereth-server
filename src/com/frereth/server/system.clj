@@ -25,18 +25,17 @@ be set by environment variables instead"
                             :protocol :tcp}
                       :direction :bind
                       :sock-type :router}]
-    {:action-socket (assoc-in default-sock [:url :port] 7841)
-     :auth-socket (assoc default-sock [:url :port] 7843)
-     ;; Almost definitely want to maximize this thread count
+    {;; Almost definitely want to maximize this thread count
      ;; Although that really depends on the environment.
      ;; It makes sense for a production server.
      ;; For a local one...probably not so much
      :context {:thread-count (-> (util/core-count) dec (max 1))}
-     ;; Yes, this is pretty twisty
-     ;; TODO: Why isn't there a dissoc-in?
-     :control-socket (let [default default-sock
-                           url (:url default)]
-                       (assoc default :url (dissoc :port)))}))
+
+     :action-socket (assoc-in default-sock [:url :port] 7841)
+     :auth-socket (assoc-in default-sock [:url :port] 7843)
+     :control-socket (assoc default-sock
+                            :url {:protocol :inproc
+                                  :address (name (gensym))})}))
 
 (defn structure []
   '{:action-socket com.frereth.common.zmq-socket/ctor
