@@ -10,7 +10,6 @@
 ;;; These messages just flat-out do not make sense in isolation.
 
 (deftest complicated-auth
-  []
   (testing
       "basic authentication (not really)"
     ;; This pretty much completely and totally belongs in authorization instead.
@@ -27,13 +26,12 @@
     ;; the foundation.
     (is (= (auth/dispatch :ohai nil) :oryl?) "Basic greeting should have led to a challenge")
 
-    ;; Server should totally reject this.
-
+    ;; Server should totally reject this
+    ;; (the schema's wrong).
     ;; Actually, the server should force us to completely and start over
     ;; from the beginning after it.
-    (try (auth/dispatch (list 'icanhaz? {:me-speekz
-                                         [[:blah [nil]]
-                                          [:whatever [nil]]]})
+    (try (auth/dispatch (list 'icanhaz? {:me-speekz [[:blah [nil]]
+                                                     [:whatever [nil]]]})
                         nil)
          (is false "How'd the bad format succeed?")
          (catch ExceptionInfo ex
@@ -85,9 +83,11 @@
                    "Final connection")))
 
     ;; Desperately need counter-examples that fail
-    (is (= (auth/dispatch (list 'ib {:user-id "test"
-                                     :password "Really secure signature"
-                                     :icanhaz? :play})
-                          nil)
-           "RDYPLYR1")
-        "Authenticating")))
+    (try (auth/dispatch (list 'ib {:user-id "test"
+                                   :password "Really secure signature"
+                                   :icanhaz? :play})
+                        nil)
+         (is false "Can't authenticate without a system")
+         (catch ExceptionInfo ex
+           (let [data (.getData ex)]
+             (is (= (:problem data) "Missing users atom")))))))

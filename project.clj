@@ -45,6 +45,11 @@
   ;; Actually, https://github.com/zeromq/jzmq/blob/master/Dockerfile has the whole
   ;; 10 yards. It's just for zmq 3.2 (which happens to be where jzmq is still sitting)
 
+  :test-paths ["test" "src/test/clojure"]  ; default, but lein-test-refresh isn't finding them
+  :test-refresh {:notify-on-success false
+                 ;; Suppress some of the clojure.test cruft messages
+                 :quiet false}
+
   ;; https://registry.hub.docker.com/u/gsnewmark/jzmq/dockerfile/
   ;; is probably the proper place to start
   :uberimage {})

@@ -215,6 +215,9 @@ Q: How do I specify that w/ schema?"
   [msg system]
   "Loop through the protocols the client claims to speak. Choose the best
 one this server also speaks. Return that, or :lolz if there are no matches."
+  (let [schema [(s/one s/Symbol "call-sign") {:me-speekz {s/Keyword [s/Any]}}]]
+    ;; :me-speekz maps protocol names to available versions
+    (s/validate schema msg))
   (if-let [protocols (-> msg second :me-speekz)]
     (if-let [recognized
              (extract-known-protocols protocols)]
@@ -242,7 +245,8 @@ As well as checking that the user exists (for example)"
 
 (defmethod dispatch 'ib
   [[_ credentials] system]
-  (if (connection-manager/existing-user? (:user-id credentials) system)
+  (log/debug "Trying to validate " (dissoc credentials :password) "\nin\n" system)
+  (if (connection-manager/existing-user? system (:user-id credentials))
     (authenticate credentials system)
     :lolz))
 
