@@ -23,23 +23,13 @@ be set by environment variables instead"
                       ;; Must use numeric IP address
                       :address #_"localhost" "127.0.0.1"
                       :protocol "tcp"}]
-    ;; nil isn't legal. Should really be sending an empty map
-    ;; Q: Does leaving the entry out completely work?
-    (comment
-      {:action-socket nil
-       :auth-socket nil
-       :control-socket nil
-       :done nil
-       :logger nil
-       :principal-manager nil})
-
     {:auth-url (assoc default-sock :port 7843)
      :action-url (assoc default-sock :port 7841)
      ;; Almost definitely want to maximize this thread count
      ;; Although that really depends on the environment.
      ;; It makes sense for a production server.
      ;; For a local one...probably not so much
-     :context {:thread-count 2}}))
+     :context {:thread-count (-> (util/core-count) dec (max 1))}}))
 
 (defn structure []
   '{:action-socket com.frereth.server.comm/new-action-socket
