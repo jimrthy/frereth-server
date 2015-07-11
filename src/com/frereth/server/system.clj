@@ -19,24 +19,30 @@
 TODO: Pretty much every one of these should
 be set by environment variables instead"
   []
-  (let [default-sock {:port :override-this
-                      ;; Must use numeric IP address
-                      :address "127.0.0.1"
-                      :protocol :tcp}]
-    {:action-socket (assoc default-sock :port 7841)
-     :auth-socket (assoc default-sock :port 7843)
+  (let [default-sock {:url {:port :override-this
+                            ;; Must use numeric IP address
+                            :address "127.0.0.1"
+                            :protocol :tcp}
+                      :direction :bind
+                      :sock-type :router}]
+    {:action-socket (assoc-in default-sock [:url :port] 7841)
+     :auth-socket (assoc default-sock [:url :port] 7843)
      ;; Almost definitely want to maximize this thread count
      ;; Although that really depends on the environment.
      ;; It makes sense for a production server.
      ;; For a local one...probably not so much
      :context {:thread-count (-> (util/core-count) dec (max 1))}
-     :control-socket (dissoc default-sock :port)}))
+     ;; Yes, this is pretty twisty
+     ;; TODO: Why isn't there a dissoc-in?
+     :control-socket (let [default default-sock
+                           url (:url default)]
+                       (assoc default :url (dissoc :port)))}))
 
 (defn structure []
-  '{:action-socket com.frereth.server.comm/new-socket
-    :auth-socket com.frereth.server.comm/new-socket
-    :context com.frereth.server.comm/new-context
-    :control-socket com.frereth.server.comm/new-socket
+  '{:action-socket com.frereth.common.zmq-socket/ctor
+    :auth-socket com.frereth.common.zmq-socket/ctor
+    :context com.frereth.common.zmq-socket/ctx-ctor
+    :control-socket com.frereth.common.zmq-socket/ctor
     :done com.frereth.server.sentinal/ctor
     :logger com.frereth.server.logging/ctor
     ;; For auth
