@@ -34,8 +34,6 @@
     ;; must be bullet-proof.
     (swap! world component/start)
     (try
-      ;; FIXME: This is failing
-      (comment (raise "Start Here"))
       (when-not (active? @world)
         (log/error "World failed to start\n"
                    (util/pretty @world)

@@ -21,35 +21,31 @@ be set by environment variables instead"
   []
   (let [default-sock {:port :override-this
                       ;; Must use numeric IP address
-                      :address #_"localhost" "127.0.0.1"
-                      :protocol "tcp"}]
-    {:auth-url (assoc default-sock :port 7843)
-     :action-url (assoc default-sock :port 7841)
+                      :address "127.0.0.1"
+                      :protocol :tcp}]
+    {:action-socket (assoc default-sock :port 7841)
+     :auth-socket (assoc default-sock :port 7843)
      ;; Almost definitely want to maximize this thread count
      ;; Although that really depends on the environment.
      ;; It makes sense for a production server.
      ;; For a local one...probably not so much
-     :context {:thread-count (-> (util/core-count) dec (max 1))}}))
+     :context {:thread-count (-> (util/core-count) dec (max 1))}
+     :control-socket (dissoc default-sock :port)}))
 
 (defn structure []
-  '{:action-socket com.frereth.server.comm/new-action-socket
-    :auth-socket com.frereth.server.comm/new-auth-socket
-    :action-url com.frereth.server.comm/new-action-url
-    :auth-url com.frereth.server.comm/new-auth-url
+  '{:action-socket com.frereth.server.comm/new-socket
+    :auth-socket com.frereth.server.comm/new-socket
     :context com.frereth.server.comm/new-context
-    :control-socket com.frereth.server.comm/new-control-socket
-    :control-url com.frereth.server.comm/new-control-url
+    :control-socket com.frereth.server.comm/new-socket
     :done com.frereth.server.sentinal/ctor
     :logger com.frereth.server.logging/ctor
+    ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
-  {:action-socket {:context :context
-                   :url :action-url}
-   :auth-socket {:context :context
-                 :url :auth-url}
-   :control-socket {:context :context
-                    :url :control-url}
+  {:action-socket {:ctx :context}
+   :auth-socket {:ctx :context}
+   :control-socket {:ctx :context}
    :principal-manager [:control-socket]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
