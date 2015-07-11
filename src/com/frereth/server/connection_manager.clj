@@ -1,7 +1,7 @@
 (ns com.frereth.server.connection-manager
+  "Poorly chosen name. principal-wrangler seems like it would have been more appropriate"
   (:require [com.stuartsierra.component :as component]
             [com.frereth.common.schema :as fr-skm]
-            [com.frereth.server.comm :as comm]
             [ribol.core :refer (raise)]
             [schema.core :as s]))
 
