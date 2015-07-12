@@ -69,7 +69,7 @@ be set by environment variables instead"
     :action-loop-interface com.frereth.common.async-zmq/ctor-interface
     :auth-socket com.frereth.common.zmq-socket/ctor
     :auth-loop com.frereth.common.async-zmq/ctor
-    :auth-loop-interface com.frereth.common.async-zmq/ctor-interface
+    :auth-loop-interface com.frereth.server.auth-socket/ctor-interface
     :context com.frereth.common.zmq-socket/ctx-ctor
     :control-socket com.frereth.common.zmq-socket/ctor
     :control-loop com.frereth.common.async-zmq/ctor
