@@ -1,5 +1,8 @@
 (ns com.frereth.server.connection-manager
-  "Poorly chosen name. principal-wrangler seems like it would have been more appropriate"
+  "Poorly chosen name. principal-wrangler seems like it would have been more appropriate.
+
+This namespace is really a prototype version of managing users.
+Which really doesn't belong in here at all."
   (:require [com.stuartsierra.component :as component]
             [com.frereth.common.schema :as fr-skm]
             [ribol.core :refer (raise)]
@@ -8,18 +11,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
 
-(s/defrecord User
-    [id :- s/Uuid
-     nick-name :- s/Str
-     socket]
-  ; Q: Is there a good reason this isn't a hashmap?
-  )
 (def user
   {:id s/Uuid
    :nick-name s/Str
    :socket s/Any})
 
-(def user-directory {:s/Uuid User})
+(def user-directory {:s/Uuid user})
 
 (s/defrecord Directory [control-socket
                         users :- fr-skm/atom-type]
@@ -33,7 +30,7 @@
          base {:id id
                :nick-name nick-name
                :socket socket}
-         initial-user #_(strict-map->User base) base
+         initial-user base
          users (or users (atom {}))]
      ;; This is strictly for the sake of getting started.
      ;; If there's already an admin in users, shouldn't add another
