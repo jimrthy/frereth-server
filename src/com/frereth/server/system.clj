@@ -47,11 +47,6 @@ be set by environment variables instead"
 
      :auth-socket (assoc-in default-sock [:url :port] 7843)
      :auth-loop {:_name "authcz"}
-     :auth-loop-interface {:in-chan (async/chan)
-                           :external-reader (fn [_]
-                                              (throw (ex-info "Not Implemented" {})))
-                           :external-writer (fn [_ _2]
-                                              (throw (ex-info "Not Implemented" {})))}
 
      :control-socket (assoc default-sock
                             :url {:protocol :inproc
@@ -64,31 +59,40 @@ be set by environment variables instead"
                                                  (throw (ex-info "Not Implemented" {})))}}))
 
 (defn structure []
-  '{:action-socket com.frereth.common.zmq-socket/ctor
-    :action-loop com.frereth.common.async-zmq/ctor
+  '{:action-loop com.frereth.common.async-zmq/ctor
     :action-loop-interface com.frereth.common.async-zmq/ctor-interface
-    :auth-socket com.frereth.common.zmq-socket/ctor
+    :action-socket com.frereth.common.zmq-socket/ctor
+
     :auth-loop com.frereth.common.async-zmq/ctor
     :auth-loop-interface com.frereth.server.auth-socket/ctor-interface
+    :auth-socket com.frereth.common.zmq-socket/ctor
+    :auth-handler com.frereth.server.comms.registrar/ctor
+
     :context com.frereth.common.zmq-socket/ctx-ctor
-    :control-socket com.frereth.common.zmq-socket/ctor
+
     :control-loop com.frereth.common.async-zmq/ctor
     :control-loop-interface com.frereth.common.async-zmq/ctor-interface
+    :control-socket com.frereth.common.zmq-socket/ctor
+
     :done com.frereth.server.sentinal/ctor
     :logger com.frereth.server.logging/ctor
     ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
-  {:action-socket {:ctx :context}
+  {:action-loop {:interface :action-loop-interface}
    :action-loop-interface {:ex-sock :action-socket}
-   :action-loop {:interface :action-loop-interface}
-   :auth-socket {:ctx :context}
-   :auth-loop-interface {:ex-sock :auth-socket}
+   :action-socket {:ctx :context}
+
+   :auth-handler {:event-loop :auth-loop}
    :auth-loop {:ex-sock :auth-socket, :interface :auth-loop-interface}
-   :control-socket {:ctx :context}
-   :control-loop-interface {:ex-sock :control-socket}
+   :auth-loop-interface {:ex-sock :auth-socket}
+   :auth-socket {:ctx :context}
+
    :control-loop {:ex-sock :action-socket, :interface :action-loop-interface}
+   :control-loop-interface {:ex-sock :control-socket}
+   :control-socket {:ctx :context}
+
    :principal-manager [:control-socket]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

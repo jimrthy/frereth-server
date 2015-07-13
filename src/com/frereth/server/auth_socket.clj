@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.core.async :as async :refer (<! <!! >! >!!)]
             [com.frereth.common.async-zmq :as async-zmq]
+            [com.frereth.common.communication :as com-comm]
             [com.frereth.common.schema :as common-schema]
             [ribol.core :refer (raise)]
             [schema.core :as s]
@@ -15,9 +16,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
 
-(def message (s/either bytes s/Str))
+(def message (s/either common-schema/java-byte-array s/Str))
 
 (def messages [message])
+
+(def router-message
+  "com-comm is responsible for low-level details.
+It should probably just go ahead and finish converting
+the contents into something meaningful, but I suppose
+there might be some scenarios where we want to do
+something different
+
+TODO: Move this elsewhere"
+  (assoc com-comm/router-message
+         :contents s/Any))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -213,18 +225,24 @@ its thing. Circular references are bad, mmkay?"
 
     (async/thread (authenticator ctx done-reference auth-port))))
 
-(s/defn reader :- common-schema/java-byte-array
-  [registrar :- common-schema/atom-type
-   sock :- mq/Socket]
-  (raise :not-implemented))
+(s/defn reader :- router-message
+  ;; This is responsible for translating
+  ;; a message that it reads from the socket into
+  ;; something useful
+  [sock :- mq/Socket]
+  (let [base-message (com-comm/router-recv! sock)
+        deserialized (map async-zmq/deserialize
+                          (:contents base-message))]
+    (assoc base-message
+           :contents deserialized)))
 
 (s/defn writer
-  [registrar :- common-schema/atom-type
-   sock :- mq/Socket
-   msg :- common-schema/java-byte-array]
-  (raise {:design-flaw "Overly simplistic"
-          :problem "I don't have any idea where
-this message should go"}))
+  [sock :- mq/Socket
+   msg :- router-message]
+  (let [serialized (map async-zmq/serialize
+                        (:contents msg))]
+    (com-comm/router-send!
+     (assoc msg :contents serialized))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
