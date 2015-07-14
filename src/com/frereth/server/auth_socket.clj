@@ -7,6 +7,7 @@
             [com.frereth.common.async-zmq :as async-zmq]
             [com.frereth.common.communication :as com-comm]
             [com.frereth.common.schema :as common-schema]
+            [com.frereth.common.util :as util]
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log
@@ -233,6 +234,8 @@ its thing. Circular references are bad, mmkay?"
   (let [base-message (com-comm/router-recv! sock)
         deserialized (map async-zmq/deserialize
                           (:contents base-message))]
+    (log/debug "AUTH message received:\n"
+               (util/pretty base-message))
     (assoc base-message
            :contents deserialized)))
 
@@ -244,15 +247,40 @@ its thing. Circular references are bad, mmkay?"
     (com-comm/router-send!
      (assoc msg :contents serialized))))
 
+(comment
+  (def ctx (mq/context 3))
+  (def sock (mq/socket! ctx :router))
+  (def url "tcp://127.0.0.1:7843")
+  (mq/bind! sock url)
+  (mq/has-more? sock)
+  (mq/recv! sock :dont-wait)
+  (mq/unbind! sock url)
+  (mq/set-linger! sock 0)
+  (mq/close! sock)
+  (mq/terminate! ctx)
+  (defn test-echo
+    []
+    (let [ctx (mq/context 3)
+          sock (mq/socket! ctx :router)
+          url "tcp://127.0.0.1:7843"
+          _ (mq/bind! sock url)]
+      (try
+        (Thread/sleep 5000)
+        (mq/has-more? sock)
+        (finally
+          (mq/unbind! sock url)
+          (mq/set-linger! sock 0)
+          (mq/close! sock)
+          (mq/terminate! ctx))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
 (s/defn ctor-interface :- EventPairInterface
   [_]
   (let [in-chan (async/chan)
-        registrar (atom {})
-        external-reader (partial reader registrar)
-        external-writer (partial writer registrar)]
+        external-reader reader
+        external-writer writer]
     (async-zmq/ctor-interface {:in-chan in-chan
                                :external-reader external-reader
                                :external-writer external-writer})))

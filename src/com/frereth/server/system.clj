@@ -41,9 +41,9 @@ be set by environment variables instead"
      :action-loop {:_name "Action!"}
      :action-loop-interface {:in-chan (async/chan)
                              :external-reader (fn [_]
-                                                (throw (ex-info "Not Implemented" {})))
+                                                (throw (ex-info "Action Loop Reader: Not Implemented" {})))
                              :external-writer (fn [_ _2]
-                                                (throw (ex-info "Not Implemented" {})))}
+                                                (throw (ex-info "Action Loop Writer: Not Implemented" {})))}
 
      :auth-socket (assoc-in default-sock [:url :port] 7843)
      :auth-loop {:_name "authcz"}
@@ -54,9 +54,9 @@ be set by environment variables instead"
      :control-loop {:_name "control"}
      :control-loop-interface {:in-chan (async/chan)
                               :external-reader (fn [_]
-                                                 (throw (ex-info "Not Implemented" {})))
+                                                 (throw (ex-info "Control Loop Reader: Not Implemented" {})))
                               :external-writer (fn [_ _2]
-                                                 (throw (ex-info "Not Implemented" {})))}}))
+                                                 (throw (ex-info "Control Loop Writer: Not Implemented" {})))}}))
 
 (defn structure []
   '{:action-loop com.frereth.common.async-zmq/ctor

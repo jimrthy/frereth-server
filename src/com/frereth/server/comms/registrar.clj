@@ -58,12 +58,12 @@ Or, at the very least, validate that an
 OpenID (et al) token is valid."
   [msg :- auth-socket/router-message]
   (assoc msg
-         :contents
-         :action-url {:port 7841  ; FIXME: magic number
-                      ;; TODO: Pull this from a config
-                      ;; file/env var instead
-                      :address (util/my-ip)
-                      :protocol :tcp}))
+         :contents {:action-url {:port 7841  ; FIXME: magic number
+                                 ;; TODO: Pull this from a config
+                                 ;; file/env var instead
+                                 :address (util/my-ip)
+                                 :protocol :tcp}
+                    :session-token (util/random-uuid)}))
 
 (s/defn possibly-authorize
   "TODO: This desperately needs to happen in a background thread.
@@ -74,6 +74,7 @@ an accumulator in do-registrations.
 Of course, that direction gets complicated quickly. KISS for now."
   [->out :- com-skm/async-channel
    msg :- com-comm/router-message]
+  (log/debug "Possibly authorizing to: " ->out)
   (let [response-body (authcz (:contents msg))
         response (assoc msg :contents response-body)
         [sent? c] (async/alts!! [[->out response] (async/timeout 500)])]
@@ -91,7 +92,7 @@ Of course, that direction gets complicated quickly. KISS for now."
         done (:done this)
         sources [done in<-]
         minutes-5 (partial async/timeout (* 5 (util/minute)))]
-    (async/go-loop [[v c] (async/alts! (conj sources (async/timeout (minutes-5))))]
+    (async/go-loop [[v c] (async/alts! (conj sources (minutes-5)))]
       (if (= c done)
         (log/debug "do-registrations loop stop signalled")
         (do
