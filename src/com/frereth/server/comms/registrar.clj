@@ -59,6 +59,8 @@ OpenID (et al) token is valid.
 
 c.f. auth-socket's dispatch"
   [msg :- auth-socket/router-message]
+  (log/debug "Trying to supply the Action channel in response to:\n"
+             (util/pretty msg))
   (assoc msg
          :contents {:action-url {:port 7841  ; FIXME: magic number
                                  ;; TODO: Pull this from a config
@@ -77,6 +79,12 @@ Of course, that direction gets complicated quickly. KISS for now."
   [->out :- com-skm/async-channel
    msg :- com-comm/router-message]
   (log/debug "Possibly authorizing to: " ->out)
+  ;; Major problems:
+  ;; 1. :contents is a lazy seq, 1 per frame
+  ;;    TODO: Just take first. Or enforce the 'one frame per message' at the protocol/socket level where it belongs
+  ;; 2. :contents is a [s/Keyword]. I'm really expecting a hashmap.
+  ;; Shouldn't really matter now: solution is to ignore and worry about later.
+  ;; But it will matter shortly, so I really hate to go down that path.
   (let [response-body (authcz (:contents msg))
         response (assoc msg :contents response-body)
         [sent? c] (async/alts!! [[->out response] (async/timeout 500)])]
@@ -87,19 +95,25 @@ Of course, that direction gets complicated quickly. KISS for now."
 (s/defn do-registrations :- com-skm/async-channel
   ;; TODO: This really seems like it should be a defnk
   [{:keys [done event-loop ex-chan]} :- Registrar]
+  (log/debug "Entering do-registrations loop")
   (let [interface (:interface event-loop)
         ->out (:in-chan interface)
-        in<- ex-chan
+        in<- (:ex-chan event-loop)
         raw-sources [done in<-]
         minutes-5 (partial async/timeout (* 5 (util/minute)))]
-    (async/go-loop [[v c] (async/alts! (conj raw-sources (minutes-5)))]
-      (if (= c done)
-        (log/debug "do-registrations loop stop signalled")
-        (do
-          (if v
-            (possibly-authorize ->out v)
-            (log/debug "do-registrations: heartbeat"))
-          (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))))
+    (async/go
+      (loop [[v c] (async/alts! (conj raw-sources (minutes-5)))]
+        (if (= c done)
+          (log/debug "do-registrations loop stop signalled")
+          (do
+            (if v
+              (try
+                (possibly-authorize ->out v)
+                (catch Exception ex
+                  (log/error ex "Trying to authorize:\n" v)))
+              (log/debug "do-registrations: heartbeat"))
+            (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))
+      (log/debug "do-registration: Exiting"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
