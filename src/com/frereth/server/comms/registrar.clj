@@ -59,8 +59,11 @@ OpenID (et al) token is valid.
 
 c.f. auth-socket's dispatch"
   [msg :- auth-socket/router-message]
-  (log/debug "Trying to supply the Action channel in response to:\n"
-             (util/pretty msg))
+  (let [pretty-msg] (try (util/pretty msg)
+                         (catch RuntimeException ex
+                           (log/error ex "Trying to pretty-format for logging REQUEST")))
+       (log/debug "Trying to supply the Action channel in response to:\n"
+                  pretty-msg))
   (assoc msg
          :contents {:action-url {:port 7841  ; FIXME: magic number
                                  ;; TODO: Pull this from a config
@@ -79,18 +82,23 @@ Of course, that direction gets complicated quickly. KISS for now."
   [->out :- com-skm/async-channel
    msg :- com-comm/router-message]
   (log/debug "Possibly authorizing to: " ->out)
-  ;; Major problems:
-  ;; 1. :contents is a lazy seq, 1 per frame
-  ;;    TODO: Just take first. Or enforce the 'one frame per message' at the protocol/socket level where it belongs
-  ;; 2. :contents is a [s/Keyword]. I'm really expecting a hashmap.
-  ;; Shouldn't really matter now: solution is to ignore and worry about later.
-  ;; But it will matter shortly, so I really hate to go down that path.
-  (let [response-body (authcz (:contents msg))
-        response (assoc msg :contents response-body)
-        [sent? c] (async/alts!! [[->out response] (async/timeout 500)])]
-    (when-not sent?
-      (log/error "possibly-authorize: timed out trying to respond with\n"
-                 (util/pretty response)))))
+  (try
+    ;; Major problems:
+    ;; 1. :contents is a lazy seq, 1 per frame
+    ;;    TODO: Just take first. Or enforce the 'one frame per message' at the protocol/socket level where it belongs
+    ;; 2. :contents is a [s/Keyword]. I'm really expecting a hashmap.
+    ;; Shouldn't really matter now: solution is to ignore and worry about later.
+    ;; But it will matter shortly, so I really hate to go down that path.
+    (let [response-body (authcz (first (:contents msg)))
+          response (assoc msg :contents response-body)
+          _ (log/debug "Sending\n" (util/pretty response) "\nin response to AUTH request")
+          [sent? c] (async/alts!! [[->out response] (async/timeout 500)])]
+      (when-not sent?
+        (log/error "possibly-authorize: timed out trying to respond with\n"
+                   (util/pretty response))))
+    (catch RuntimeException ex
+      (log/error ex "At this level, really should have been handled via ribol")
+      (throw))))
 
 (s/defn do-registrations :- com-skm/async-channel
   ;; TODO: This really seems like it should be a defnk
@@ -109,6 +117,7 @@ Of course, that direction gets complicated quickly. KISS for now."
             (if v
               (try
                 (possibly-authorize ->out v)
+                ;; Don't want buggy inner handling code to break the external interface
                 (catch Exception ex
                   (log/error ex "Trying to authorize:\n" v)))
               (log/debug "do-registrations: heartbeat"))
