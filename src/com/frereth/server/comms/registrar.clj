@@ -86,12 +86,10 @@ Of course, that direction gets complicated quickly. KISS for now."
 
 (s/defn do-registrations :- com-skm/async-channel
   ;; TODO: This really seems like it should be a defnk
-  [this :- Registrar]
-  (let [event-loop (:event-loop this)
-        interface (:interface this)
+  [{:keys [done event-loop ex-chan]} :- Registrar]
+  (let [interface (:interface event-loop)
         ->out (:in-chan interface)
-        in<- (:ex-chan event-loop)
-        done (:done this)
+        in<- ex-chan
         raw-sources [done in<-]
         minutes-5 (partial async/timeout (* 5 (util/minute)))]
     (async/go-loop [[v c] (async/alts! (conj raw-sources (minutes-5)))]
