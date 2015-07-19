@@ -106,6 +106,10 @@ thought."
     (do
       (log/debug (str "Empty CAR. CDR: " (rest msgs))))))
 
+(defmethod dispatch :where-should-my-people-call-your-people
+  [_]
+  (raise :not-implemented))
+
 (defmethod dispatch :default
   [echo]
   echo)
@@ -248,10 +252,13 @@ its thing. Circular references are bad, mmkay?"
      (assoc msg :contents serialized))))
 
 (comment
+  ;; For testing
   (def ctx (mq/context 3))
   (def sock (mq/socket! ctx :router))
   (def url "tcp://127.0.0.1:7843")
   (mq/bind! sock url)
+  ;; Note that this will never return True until after
+  ;; we've received the first frame
   (mq/has-more? sock)
   (mq/recv! sock :dont-wait)
   (mq/unbind! sock url)

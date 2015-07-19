@@ -55,7 +55,9 @@ Check the database for rbac. Set up a real session
 (and register that with the database).
 
 Or, at the very least, validate that an
-OpenID (et al) token is valid."
+OpenID (et al) token is valid.
+
+c.f. auth-socket's dispatch"
   [msg :- auth-socket/router-message]
   (assoc msg
          :contents {:action-url {:port 7841  ; FIXME: magic number
@@ -90,16 +92,16 @@ Of course, that direction gets complicated quickly. KISS for now."
         ->out (:in-chan interface)
         in<- (:ex-chan event-loop)
         done (:done this)
-        sources [done in<-]
+        raw-sources [done in<-]
         minutes-5 (partial async/timeout (* 5 (util/minute)))]
-    (async/go-loop [[v c] (async/alts! (conj sources (minutes-5)))]
+    (async/go-loop [[v c] (async/alts! (conj raw-sources (minutes-5)))]
       (if (= c done)
         (log/debug "do-registrations loop stop signalled")
         (do
-          (if (= c minutes-5)
-            (log/debug "do-registrations: heartbeat")
-            (possibly-authorize ->out v))
-          (recur (async/alts! (conj sources (async/timeout (minutes-5))))))))))
+          (if v
+            (possibly-authorize ->out v)
+            (log/debug "do-registrations: heartbeat"))
+          (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
