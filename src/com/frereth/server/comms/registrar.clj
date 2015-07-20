@@ -59,9 +59,10 @@ OpenID (et al) token is valid.
 
 c.f. auth-socket's dispatch"
   [msg :- auth-socket/router-message]
-  (let [pretty-msg] (try (util/pretty msg)
-                         (catch RuntimeException ex
-                           (log/error ex "Trying to pretty-format for logging REQUEST")))
+  (let [pretty-msg (try (util/pretty msg)
+                        (catch RuntimeException ex
+                          (log/error ex "Trying to pretty-format for logging REQUEST\n"
+                                     "N.B. This should absolutely never happen")))]
        (log/debug "Trying to supply the Action channel in response to:\n"
                   pretty-msg))
   (assoc msg
@@ -118,6 +119,8 @@ Of course, that direction gets complicated quickly. KISS for now."
               (try
                 (possibly-authorize ->out v)
                 ;; Don't want buggy inner handling code to break the external interface
+                (catch RuntimeException ex
+                  (log/error ex "Trying to authorize:\n" v))
                 (catch Exception ex
                   (log/error ex "Trying to authorize:\n" v)))
               (log/debug "do-registrations: heartbeat"))

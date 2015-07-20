@@ -236,7 +236,7 @@ its thing. Circular references are bad, mmkay?"
   ;; something useful
   [sock :- mq/Socket]
   (let [base-message (com-comm/router-recv! sock)
-        deserialized (map async-zmq/deserialize
+        deserialized (map util/deserialize
                           (:contents base-message))]
     (log/debug "AUTH message received:\n"
                (util/pretty base-message))
@@ -246,7 +246,7 @@ its thing. Circular references are bad, mmkay?"
 (s/defn writer
   [sock :- mq/Socket
    msg :- router-message]
-  (let [serialized (map async-zmq/serialize
+  (let [serialized (map util/serialize
                         (:contents msg))]
     (com-comm/router-send!
      (assoc msg :contents serialized))))
