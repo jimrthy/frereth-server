@@ -235,21 +235,22 @@ its thing. Circular references are bad, mmkay?"
   ;; a message that it reads from the socket into
   ;; something useful
   [sock :- mq/Socket]
-  (let [base-message (com-comm/router-recv! sock)
-        deserialized (map util/deserialize
-                          (:contents base-message))]
-    (log/debug "AUTH message received:\n"
-               (util/pretty base-message))
-    (assoc base-message
-           :contents deserialized)))
+  (comment
+    (let [base-message (com-comm/router-recv! sock)]
+      (log/debug "AUTH message received:\n"
+                 (util/pretty base-message))
+      (update-in base-message
+                 [:contents] util/deserialize)))
+  (com-comm/router-recv! sock))
 
 (s/defn writer
   [sock :- mq/Socket
    msg :- router-message]
-  (let [serialized (map util/serialize
-                        (:contents msg))]
-    (com-comm/router-send!
-     (assoc msg :contents serialized))))
+  (log/debug "Sending router message:\n"
+             (util/pretty msg))
+  ;; Q: Isn't marshalling handled at the com-comm layer now?
+  ;; A: Yes.
+  (com-comm/router-send! msg))
 
 (comment
   ;; For testing
