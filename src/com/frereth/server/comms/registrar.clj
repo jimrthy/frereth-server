@@ -8,6 +8,7 @@
 
             [com.frereth.server.auth-socket :as auth-socket]
             [com.stuartsierra.component :as component]
+            [joda-time :as date]
             [ribol.core :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log])
@@ -71,6 +72,7 @@ c.f. auth-socket's dispatch"
                         ;; file/env var instead
                         :address (util/my-ip)
                         :protocol :tcp}
+         :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
          :session-token (util/random-uuid)))
 
 (s/defn possibly-authorize!
@@ -118,7 +120,9 @@ Of course, that direction gets complicated quickly. KISS for now."
                 (catch Exception ex
                   (log/error ex "Trying to authorize:\n" v)))
               (log/debug "do-registrations: heartbeat"))
-            (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))
+            (do
+              (when (not= c in<-)
+                (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))))
       (log/debug "do-registration: Exiting"))))
 
 (comment
