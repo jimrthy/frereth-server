@@ -73,7 +73,12 @@ c.f. auth-socket's dispatch"
                         :address (util/my-ip)
                         :protocol :tcp}
          :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
-         :session-token (util/random-uuid)))
+         :session-token (util/random-uuid)
+         ;; FIXME: This needs to be the public key of the action-url
+         :public-key (util/random-uuid)
+         ;; It's tempting to make this a "real" URL instance
+         ;; But clojure doesn't auto-serialize those over EDN
+         :static-url "http://localhost:9000/index.html"))
 
 (s/defn possibly-authorize!
   "TODO: This desperately needs to happen in a background thread.
@@ -100,29 +105,30 @@ Of course, that direction gets complicated quickly. KISS for now."
 (s/defn do-registrations :- com-skm/async-channel
   ;; TODO: This really seems like it should be a defnk
   [{:keys [done event-loop ex-chan]} :- Registrar]
-  (log/debug "Entering do-registrations loop")
-  (let [interface (:interface event-loop)
+  (let [done (promise)
+        interface (:interface event-loop)
         ->out (:in-chan interface)
         in<- (:ex-chan event-loop)
-        raw-sources [done in<-]
+        raw-sources [in<-]
         minutes-5 (partial async/timeout (* 5 (util/minute)))]
     (async/go
+      (log/debug "Entering do-registrations loop. sources w/out timeout: " raw-sources)
       (loop [[v c] (async/alts! (conj raw-sources (minutes-5)))]
-        (if (= c done)
-          (log/debug "do-registrations loop stop signalled")
-          (do
-            (if v
-              (try
-                (possibly-authorize! ->out v)
-                ;; Don't want buggy inner handling code to break the external interface
-                (catch RuntimeException ex
-                  (log/error ex "Trying to authorize:\n" v))
-                (catch Exception ex
-                  (log/error ex "Trying to authorize:\n" v)))
-              (log/debug "do-registrations: heartbeat"))
+        (if v
+          (try
+            (possibly-authorize! ->out v)
+            ;; Don't want buggy inner handling code to break the external interface
+            (catch RuntimeException ex
+              (log/error ex "Trying to authorize:\n" v))
+            (catch Exception ex
+              (log/error ex "Trying to authorize:\n" v)))
+          (if (not= c in<-)
+            (log/debug "do-registrations: heartbeat")
             (do
-              (when (not= c in<-)
-                (recur (async/alts! (conj raw-sources (async/timeout (minutes-5))))))))))
+              (log/debug "Signalling loop exit")
+              (deliver done true))))
+        (when-not (realized? done)
+          (recur (async/alts! (conj raw-sources (minutes-5))))))
       (log/debug "do-registration: Exiting"))))
 
 (comment
