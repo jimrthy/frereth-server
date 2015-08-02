@@ -13,7 +13,7 @@
 (defn active?
   "The downside to this approach is that it short-circuits."
   [world]
-  (and (-> world :context :context)
+  (and (-> world :context :ctx)
        (-> world :control-socket :socket)))
 
 (deftest start-stop []
@@ -27,7 +27,7 @@
         overridden (-> inited
                        (update-in [:auth-socket :url :port] (constantly auth-port))
                        (update-in [:action-socket :url :port] (constantly action-port)))]
-    (println "Overridden World:\n" (util/pretty overridden))
+    (comment (println "Overridden World:\n" (util/pretty overridden)))
     (reset! world overridden)
     (is (not (active? @world)) "World created in active state")
 

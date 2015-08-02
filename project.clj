@@ -10,7 +10,10 @@
                  [com.postspectacular/rotor "0.1.0"]
                  [com.stuartsierra/component "0.2.3"]
                  [datomic-schema "1.3.0" :exclusions [org.clojure/clojure]]
+                 ;; TODO: This really doesn't belong in here
+                 [io.rkn/conformity "0.3.5"]
                  ;; I'm not using these, but com.palletops/uberimage and lein-ancient
+                 ;; (in my profiles.clj)
                  ;; are competing over older versions
                  [org.apache.httpcomponents/httpclient "4.4.1"]
                  [org.apache.httpcomponents/httpcore "4.4.1"]
