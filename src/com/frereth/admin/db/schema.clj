@@ -30,6 +30,8 @@
             [this]
             (raise :not-implemented))))
 ;; A: Until there is, just use a plain hashmap
+;; It's tempting to make (start) convert the uri to a connection-string.
+;; That temptation seems like a mistake.
 (def DatabaseSchema {:schema-resource-name s/Str
                      :uri db/UriDescription})
 
@@ -72,27 +74,39 @@
 
 ;; Really just a sequence of names
 (def PartTxnDescrSeq [s/Str])
-(def AttrTxnDescr {s/Symbol
-                   [;; These are almost value-types,
-                    ;; but YuppieChef adds the namespace for us
-                    (s/one s/Keyword "primitive-type")
-                    (s/optional #{(s/either s/Str s/Keyword)} "options")]})
-(def AttrTxnDescrSeq {s/Symbol AttrTxnDescr})
-(def TxnDescrSeq [(s/one PartTxnDescrSeq "parts")
-                  (s/one AttrTxnDescrSeq "attributes")])
+(def AttrTxnDescr
+  "Transaction that builds an individual attribute
+
+These are almost value-types,
+but YuppieChef adds the namespace for us"
+  {s/Symbol [(s/one s/Keyword "primitive-type")
+             (s/optional #{(s/either s/Str s/Keyword)} "options")]})
+(def AttrTxnDescrSeq
+  "Add multiple attributes in a group of transactions"
+  {s/Symbol AttrTxnDescr})
+(def TxnDescrSeq {:partitions PartTxnDescrSeq
+                  :attributes AttrTxnDescrSeq})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
 
-(s/defn ^:always-validate do-schema-installation
+(s/defn ^:always-validate do-schema-installation :- [{:norm-name s/Str
+                                                      :tx-index s/Int
+                                                      ;; Q: What is tx-result?
+                                                      :tx-result s/Any}]
   "Add schema/partition"
   [uri :- s/Str
    transactions :- TransactionSequence]
   (d/create-database uri)
   (let [conn (d/connect uri)
+        ;; Need a better way to hide the API.
+        ;; Since any given conformation will only be applied once per
+        ;; name, the thing calling this should really be setting this up.
+        ;; And, honestly, it's not like it's asking a lot to have them
+        ;; wrap the transactions into a norms-map shape.
+        ;; Or maybe I shouldn't be trying to hide it in the first place.
         norms-map {:frereth/base-data-platform {:txes [transactions]}}]
-    ;; Returns nil on success
-    (conformity/ensure-conforms conn norms-map [:fishfrog/base-schema])))
+    (conformity/ensure-conforms conn norms-map)))
 
 (s/defn load-transactions-from-resource :- TxnDescrSeq
   [resource-name :- s/Str]
@@ -101,13 +115,16 @@
 (s/defn expand-schema-descr
   "Isolating a helper function to start expanding attribute descriptions into transactions"
   [descr :- AttrTxnDescrSeq]
+  (log/info "Expanding Schema Description:\n" descr)
   (map (fn [[attr field-descrs]]
+         (log/debug "Individual attribute: " attr
+                    "\nDescription:\n" field-descrs)
          ;; I'm duplicating some of the functionality from
          ;; Yuppiechef's library because he has it hidden
          ;; behind macros
          (schema* (name attr)
                   {:fields (reduce (fn [acc [k v]]
-                                     (comment (log/debug "Setting up field" k "with characteristics" v))
+                                     (comment )(log/debug "Setting up field" k "with characteristics" v)
                                      (assoc acc (name k)
                                             (if (= (count v) 1)
                                               ;; If there isn't an option set,

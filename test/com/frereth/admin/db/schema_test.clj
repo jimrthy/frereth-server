@@ -68,7 +68,23 @@ can't just call the individual tests manually"
 
 (s/defn ^:always-check extract-connection-string :- s/Str
   []
-  (-> system :database-uri :connection-string))
+  (comment
+    (println "Extracting the connection string from\n"
+             system
+             "\nwhich contains keys:\n"
+             (keys system)
+             "\nwhich has a database URI of:\n"
+             (:database-uri system)))
+  (comment (if-let [started-string (-> system :database-uri :connection-string)]
+    started-string
+    (raise {:system-stopped (:database-uri system)})))
+  (let [dscr (-> system :database-uri :description)
+        result (db/build-connection-string dscr)]
+    (testing "Database Creation Assumptions"
+      ;; We're using a gensym for the name of a memory database.
+      ;; We should get a new one every single time.
+      (is (d/create-database result)))
+    result))
 
 (defn test-partition
   []
@@ -176,7 +192,7 @@ and vice versa"
 
 (deftest basic-structure
   "Because I have to start somewhere...does setup/teardown work?"
-  (is (= 2 2)))
+  (is (:database-schema system)))
 
 (deftest note-syntax
   "Because I haven't played w/ are before"
@@ -227,9 +243,12 @@ But, seriously. I had to start somewhere."
           (is (nil? cause-of-root))
           (is (= (:class root-details) Exceptions$IllegalArgumentExceptionInfo))
           (is (= ":db.error/not-an-entity Unable to resolve entity: :dt/dt" (:message root-details))))
+        (println "Getting ready to try to run conformity on:\n"
+                 structural-txn)
         (let [migration-ret-val
               (db-schema/do-schema-installation cxn-str structural-txn)]
-          (is (not migration-ret-val)))
+          (doseq [result-detail migration-ret-val]
+            (is (:tx-result result-detail))))
         (is (conformity/has-attribute? (-> cxn-str d/connect d/db) :dt/dt))
         (let [datatypes (db/q sql cxn-str)]
           (is (= #{} datatypes)))
@@ -247,23 +266,22 @@ But, seriously. I had to start somewhere."
   "Make sure the schema.edn does what I expect"
   []
   (let [cxn-str (extract-connection-string)
-        ;; Really shouldn't be caching this,
-        ;; at least in theory. But it seems
-        ;; silly not to, in practice.
-        ;; It's not like I'm actively passing it around
-        ;; anywhere else
-        conn (d/connect cxn-str)]
-    (is (not (conformity/has-attribute? (d/db conn) :dt/dt)))
-    (let [schema-cpt (:database-schema system)]
-      (db-schema/install-schema! schema-cpt))
-    (is (conformity/has-attribute? (d/db conn) :dt/dt))))
+        uri-dscr (-> system :database-uri :description)]
+    (comment (println "Trying to connect to " cxn-str
+                      "\nbased on\n" uri-dscr))
+    (let [conn (d/connect cxn-str)]
+      (is (not (conformity/has-attribute? (d/db conn) :dt/dt)))
+      (let [schema-cpt (:database-schema system)]
+        (db-schema/install-schema! uri-dscr schema-cpt))
+      (is (conformity/has-attribute? (d/db conn) :dt/dt)))))
 
 (deftest data-platform-basics
   []
   (let [cxn-str (extract-connection-string)
+        uri-dscr (-> system :database-uri :description)
         conn (d/connect cxn-str)]
     (let [schema-cpt (:database-schema system)]
-      (db-schema/install-schema! schema-cpt))
+      (db-schema/install-schema! uri-dscr schema-cpt))
     ;; OK, we should have everything set up to let
     ;; us start rocking and rolling with our kick-ass
     ;; Data Platform.

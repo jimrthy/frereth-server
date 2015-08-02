@@ -36,7 +36,7 @@ approach for now."
 (defmulti build-connection-string :protocol)
 (defmulti disconnect :protocol)
 
-(s/defrecord URL [description :- UriDescription
+(s/defrecord url [description :- UriDescription
                   connection-string :- s/Str]
   component/Lifecycle
   (start
