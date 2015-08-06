@@ -1,6 +1,6 @@
 (ns com.frereth.admin.db.schema
   "Because I have to start declaring schema somewhere"
-  (:require [com.frereth.common.util :as common]
+  (:require [com.frereth.common.util :as util]
             [com.stuartsierra.component :as component]
             [datomic.api :as d]
             [datomic-schema.schema :refer [defdbfn
@@ -74,6 +74,11 @@
 
 ;; Really just a sequence of names
 (def PartTxnDescrSeq [s/Str])
+(def AttrTypeTxn
+  "Symbol that describes the type, mapped to a tuple of the primitive type
+(as a keyword) and an optional set of options (most importantly, the doc string)"
+  {s/Symbol {s/Symbol [(s/one s/Keyword "primitive-type") (s/optional [s/Any] "options")]}})
+
 (def AttrTxnDescr
   "Transaction that builds an individual attribute
 
@@ -81,16 +86,15 @@ These are almost value-types,
 but YuppieChef adds the namespace for us"
   {s/Symbol [(s/one s/Keyword "primitive-type")
              (s/optional #{(s/either s/Str s/Keyword)} "options")]})
-(def AttrTxnDescrSeq
-  "Add multiple attributes in a group of transactions"
-  {s/Symbol AttrTxnDescr})
+(def AttrTxnDescrSeq [AttrTxnDescr])
 (def TxnDescrSeq {:partitions PartTxnDescrSeq
+                  :attribute-types [AttrTypeTxn]
                   :attributes AttrTxnDescrSeq})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
 
-(s/defn ^:always-validate do-schema-installation :- [{:norm-name s/Str
+(s/defn ^:always-validate do-schema-installation :- [{:norm-name (s/either s/Str s/Keyword)
                                                       :tx-index s/Int
                                                       ;; Q: What is tx-result?
                                                       :tx-result s/Any}]
@@ -106,38 +110,46 @@ but YuppieChef adds the namespace for us"
         ;; wrap the transactions into a norms-map shape.
         ;; Or maybe I shouldn't be trying to hide it in the first place.
         norms-map {:frereth/base-data-platform {:txes [transactions]}}]
-    (conformity/ensure-conforms conn norms-map)))
+    (let [result(conformity/ensure-conforms conn norms-map)]
+      (log/debug "ensure-conforms returned:\n" result)
+      result)))
 
 (s/defn load-transactions-from-resource :- TxnDescrSeq
   [resource-name :- s/Str]
-  (common/load-resource resource-name))
+  (log/debug "Getting ready to load schema from: " resource-name)
+  (util/load-resource resource-name))
+
+(defn schema-black-magic
+  [attr-descr]
+  (log/debug "Splitting " (util/pretty attr-descr) " into an attr/descr pair")
+  (let [[attr field-descrs] attr-descr]
+    (log/debug "Individual attribute: " attr
+               "\nDescription:\n" field-descrs)
+    ;; I'm duplicating some of the functionality from
+    ;; Yuppiechef's library because he has it hidden
+    ;; behind macros
+    (schema* (name attr)
+             {:fields (reduce (fn [acc [k v]]
+                                (comment )(log/debug "Setting up field" k "with characteristics" v)
+                                (assoc acc (name k)
+                                       (if (= (count v) 1)
+                                         ;; If there isn't an option set,
+                                         ;; use vec to make sure one gets appended
+                                         (do
+                                           (comment (log/debug "Adding default empty set"))
+                                           (conj (vec v) #{}))
+                                         (if (= (count v) 2)
+                                           v
+                                           (raise {:illegal-field-description v
+                                                   :field-id k})))))
+                              {}
+                              field-descrs)})))
 
 (s/defn expand-schema-descr
   "Isolating a helper function to start expanding attribute descriptions into transactions"
   [descr :- AttrTxnDescrSeq]
-  (log/info "Expanding Schema Description:\n" descr)
-  (map (fn [[attr field-descrs]]
-         (log/debug "Individual attribute: " attr
-                    "\nDescription:\n" field-descrs)
-         ;; I'm duplicating some of the functionality from
-         ;; Yuppiechef's library because he has it hidden
-         ;; behind macros
-         (schema* (name attr)
-                  {:fields (reduce (fn [acc [k v]]
-                                     (comment )(log/debug "Setting up field" k "with characteristics" v)
-                                     (assoc acc (name k)
-                                            (if (= (count v) 1)
-                                              ;; If there isn't an option set,
-                                              ;; use vec to make sure one gets appended
-                                              (do
-                                                (comment (log/debug "Adding default empty set"))
-                                                (conj (vec v) #{}))
-                                              (if (= (count v) 2)
-                                                v
-                                                (raise {:illegal-field-description v
-                                                        :field-id k})))))
-                                   {}
-                                   field-descrs)}))
+  (log/info "Expanding Schema Description:\n" (util/pretty descr))
+  (map schema-black-magic
        descr))
 
 (defn expanded-descr->schema
@@ -154,10 +166,11 @@ through generate-schema to generate actual transactions"
   "Convert from a slightly-more-readable high-level description
 to the actual datastructure that datomic uses"
   [descr :- TxnDescrSeq]
-  (let [parts (map part (first descr))
-        attrs (expand-schema-descr (second descr))
-        generated-schema (expanded-descr->schema attrs)
+  (let [parts (map part (:partitions descr))
+        attr-types (expand-schema-descr (:attribute-types descr))
+        generated-schema (expanded-descr->schema attr-types)
         entities (nth descr 2)]
+    (raise {:not-implemented "Still have to cope w/ :attributes"})
     [(concat (generate-parts parts)
              generated-schema)
      entities]))
@@ -167,16 +180,16 @@ to the actual datastructure that datomic uses"
    tx-description :- TxnDescrSeq]
   (let [uri (db/build-connection-string uri-description)]
         (comment (log/debug "Expanding high-level schema transaction description:\n"
-                            (common/pretty tx-description)
+                            (util/pretty tx-description)
                             "from" resource-name))
         (let [[schema-tx primer-tx] (expand-txn-descr tx-description)]
           (comment (log/debug "Setting up schema using\n"
-                              (common/pretty tx) "at\n" uri))
+                              (util/pretty tx) "at\n" uri))
           (try
             (s/validate TransactionSequence schema-tx)
             (catch ExceptionInfo ex
               (log/error ex "Installing schema based on\n"
-                         #_(common/pretty tx) schema-tx
+                         #_(util/pretty tx) schema-tx
                          "\nwhich has" (count schema-tx) "members"
                          "is going to fail")
               (doseq [step schema-tx]
@@ -198,8 +211,8 @@ to the actual datastructure that datomic uses"
   [this :- DatabaseSchema]
   (let [uri-description (-> this :uri :description)
         resource-name (:schema-resource-name this)]
-    (comment (log/debug "Installing schema for\n" (common/pretty this)
-                        "at" (common/pretty base-uri)
+    (comment (log/debug "Installing schema for\n" (util/pretty this)
+                        "at" (util/pretty base-uri)
                         "using" (-> base-uri :description :protocol)
                         "\nfrom" resource-name))
     (if-let [tx-description (load-transactions-from-resource resource-name)]

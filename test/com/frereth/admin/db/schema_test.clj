@@ -34,8 +34,8 @@
 
 (defn system-for-testing
   []
-  {:database-schema [db-schema/ctor {:schema-resource-name
-                                     "test-schema.edn"}]
+  {:database-schema (db-schema/ctor {:schema-resource-name
+                                     "test-schema.edn"})
    :database-uri {:description {:name (str (gensym))
                                 :protocol :ram}}})
 
@@ -271,8 +271,11 @@ But, seriously. I had to start somewhere."
                       "\nbased on\n" uri-dscr))
     (let [conn (d/connect cxn-str)]
       (is (not (conformity/has-attribute? (d/db conn) :dt/dt)))
-      (let [schema-cpt (:database-schema system)]
-        (db-schema/install-schema! uri-dscr schema-cpt))
+      (let [schema-cpt (-> system :database-schema :schema-resource-name)
+            _ (println "Loading transactions from " schema-cpt)
+            tx-dscr (db-schema/load-transactions-from-resource schema-cpt)]
+        (println "See what happens when we install schema from " schema-cpt)
+        (db-schema/install-schema! uri-dscr tx-dscr))
       (is (conformity/has-attribute? (d/db conn) :dt/dt)))))
 
 (deftest data-platform-basics
@@ -280,8 +283,9 @@ But, seriously. I had to start somewhere."
   (let [cxn-str (extract-connection-string)
         uri-dscr (-> system :database-uri :description)
         conn (d/connect cxn-str)]
-    (let [schema-cpt (:database-schema system)]
-      (db-schema/install-schema! uri-dscr schema-cpt))
+    (let [schema-cpt (-> system :database-schema :schema-resource-name)
+          tx-dscr (db-schema/load-transactions-from-resource schema-cpt)]
+      (db-schema/install-schema! uri-dscr tx-dscr))
     ;; OK, we should have everything set up to let
     ;; us start rocking and rolling with our kick-ass
     ;; Data Platform.
