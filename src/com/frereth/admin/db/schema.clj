@@ -3,12 +3,8 @@
   (:require [com.frereth.common.util :as util]
             [com.stuartsierra.component :as component]
             [datomic.api :as d]
-            [datomic-schema.schema :refer [defdbfn
-                                           fields
-                                           generate-parts
-                                           generate-schema
-                                           part
-                                           schema*]]
+            [datomic-schema.schema
+             :as yuppie-schema]
             [com.frereth.server.db.core :as db]
             [io.rkn.conformity :as conformity]
             [ribol.core :refer [raise]]
@@ -121,14 +117,24 @@ but YuppieChef adds the namespace for us"
 
 (defn schema-black-magic
   [attr-descr]
-  (log/debug "Splitting " (util/pretty attr-descr) " into an attr/descr pair")
+  (log/debug "Splitting "
+             attr-descr
+             " into an attr/descr pair")
+  ;; This fails because we have a map rather than
+  ;; the key/value pairs we'd get if we were mapping over
+  ;; a hashmap
+  ;; Q: But why is the log message about splitting disappearing?
+  ;; A: It isn't. It's just showing up far later than expected.
+  ;; For now, at least, chalk it up to laziness and fix the root problem
+  (comment
+    (raise {:whats-going-on? :Im-definitely-getting-here}))
   (let [[attr field-descrs] attr-descr]
     (log/debug "Individual attribute: " attr
                "\nDescription:\n" field-descrs)
     ;; I'm duplicating some of the functionality from
     ;; Yuppiechef's library because he has it hidden
     ;; behind macros
-    (schema* (name attr)
+    (yuppie-schema/schema* (name attr)
              {:fields (reduce (fn [acc [k v]]
                                 (comment )(log/debug "Setting up field" k "with characteristics" v)
                                 (assoc acc (name k)
@@ -148,7 +154,9 @@ but YuppieChef adds the namespace for us"
 (s/defn expand-schema-descr
   "Isolating a helper function to start expanding attribute descriptions into transactions"
   [descr :- AttrTxnDescrSeq]
-  (log/info "Expanding Schema Description:\n" (util/pretty descr))
+  (log/info "Expanding Schema Description:\n"
+            (util/pretty descr)
+            "\na " (class descr))
   (map schema-black-magic
        descr))
 
@@ -157,52 +165,52 @@ but YuppieChef adds the namespace for us"
 to the output of a seq of Yuppiechef's schema macro) and run it
 through generate-schema to generate actual transactions"
   [attrs]
+  (log/debug "expanded-descr->schema -- calling generate-schema on:\n"
+             (util/pretty attrs) "\na " (class attrs))
   (comment (map (fn [namespace]
-                  (generate-schema namespace {:index-all? true}))
+                  (yuppie-schema/generate-schema namespace {:index-all? true}))
                 attrs))
-  (generate-schema attrs {:index-all? true}))
+  (yuppie-schema/generate-schema attrs {:index-all? true}))
 
 (s/defn expand-txn-descr :- TransactionSequence
   "Convert from a slightly-more-readable high-level description
 to the actual datastructure that datomic uses"
   [descr :- TxnDescrSeq]
-  (let [parts (map part (:partitions descr))
+  (let [parts (map yuppie-schema/part (:partitions descr))
         attr-types (expand-schema-descr (:attribute-types descr))
         generated-schema (expanded-descr->schema attr-types)
-        entities (nth descr 2)]
-    (raise {:not-implemented "Still have to cope w/ :attributes"})
-    [(concat (generate-parts parts)
-             generated-schema)
-     entities]))
+        entities (:attributes descr)]
+    {:structure (concat (yuppie-schema/generate-parts parts)
+                        generated-schema)
+     :data entities}))
 
 (s/defn install-schema!
   [uri-description :- db/UriDescription
    tx-description :- TxnDescrSeq]
   (let [uri (db/build-connection-string uri-description)]
-        (comment (log/debug "Expanding high-level schema transaction description:\n"
-                            (util/pretty tx-description)
-                            "from" resource-name))
-        (let [[schema-tx primer-tx] (expand-txn-descr tx-description)]
-          (comment (log/debug "Setting up schema using\n"
-                              (util/pretty tx) "at\n" uri))
+    (comment) (log/debug "Expanding high-level schema transaction description:\n"
+                         (util/pretty tx-description))
+        (let [{:keys [structure data]} (expand-txn-descr tx-description)]
+          (comment) (log/debug "Setting up schema using\n"
+                               (util/pretty structure) "at\n" uri)
           (try
-            (s/validate TransactionSequence schema-tx)
+            (s/validate TransactionSequence structure)
             (catch ExceptionInfo ex
               (log/error ex "Installing schema based on\n"
-                         #_(util/pretty tx) schema-tx
-                         "\nwhich has" (count schema-tx) "members"
+                         #_(util/pretty tx) structure
+                         "\nwhich has" (count structure) "members"
                          "is going to fail")
-              (doseq [step schema-tx]
+              (doseq [step structure]
                 (try
                   (s/validate IndividualTxn step)
                   (catch ExceptionInfo ex
                     (log/error ex "Step:\n" step))))))
-          (do-schema-installation uri schema-tx)
+          (do-schema-installation uri structure)
 
           ;; This has to happen as a Step 2:
           ;; We can't assign attributes to entities until
           ;; after the transaction that generates the schema
-          (db/upsert! uri primer-tx)))  )
+          (db/upsert! uri data))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

@@ -48,6 +48,7 @@ can't just call the individual tests manually"
       ;; Most tests probably make sense to run against that
       ;; TODO: Add test features
       (try
+        ;; As written, this is a noop
         (let [started-system (component/start pre-testable-system)]
           (try
             (alter-var-root #'system (constantly started-system))
