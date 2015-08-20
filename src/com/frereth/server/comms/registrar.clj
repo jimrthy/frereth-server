@@ -24,6 +24,7 @@
   ;; Make this the absolute dumbest registration manager I can possibly get away with
   ;; I have unit tests that actually set up an authentication
   ;; protocol, of sorts.
+  ;; In authentication.clj, which is named incorrectly.
   ;; TODO: Add them into this mix
   ;; After I get the rope thrown across the gorge.
   component/Lifecycle

@@ -1,4 +1,13 @@
 (ns com.frereth.server.authentication
+  "This is my initial approach toward the initial
+client hand-shake.
+TODO: Add this into the mix before we ever start
+setting up things like the login dialog.
+
+We have to make sure things are speaking the same language
+before they start trying to communicate about complex things.
+
+TODO: Rename this to something like protocol-handshake"
   (:require [clojure.pprint :refer (pprint)]
             [com.frereth.server.connection-manager :as connection-manager]
             [ribol.core :refer (raise)]
