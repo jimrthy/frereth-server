@@ -67,6 +67,8 @@ c.f. auth-socket's dispatch"
                                      "N.B. This should absolutely never happen")))]
        (log/debug "Trying to supply the Action channel in response to:\n"
                   pretty-msg))
+  (log/warn "Set up a web server and switch back to serving data that way")
+  ;; TODO: Set up a web server and go back to doing it this way
   (assoc msg
          :action-url {:port 7841  ; FIXME: magic number
                         ;; TODO: Pull this from a config
