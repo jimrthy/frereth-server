@@ -64,24 +64,86 @@ c.f. auth-socket's dispatch"
   (let [pretty-msg (try (util/pretty msg)
                         (catch RuntimeException ex
                           (log/error ex "Trying to pretty-format for logging REQUEST\n"
-                                     "N.B. This should absolutely never happen")))]
+                                     "N.B. This should absolutely never happen")))
+        information-to-share-later {:action-url {:port 7841  ; FIXME: magic number
+                                                 ;; TODO: Pull this from a config
+                                                 ;; file/env var instead
+                                                 :address (util/my-ip)
+                                                 :protocol :tcp}
+                                    ;; FIXME: This needs to be the public key of the action-url
+                                    :public-key (util/random-uuid)
+
+                                    ;; Where to download the actual world data
+                                    ;; As opposed to just specifying the :html directly
+                                    ;; This seems like the approach that makes much more sense,
+                                    ;; especially when we're talking about native renderers
+                                    ;; It's tempting to make this a "real" URL instance
+                                    ;; But clojure doesn't auto-serialize those over EDN
+                                    :world-url "http://localhost:9000/index.html"}]
        (log/debug "Trying to supply the Action channel in response to:\n"
                   pretty-msg))
   (log/warn "Set up a web server and switch back to serving data that way")
   ;; TODO: Set up a web server and go back to doing it this way
-  (assoc msg
-         :action-url {:port 7841  ; FIXME: magic number
-                        ;; TODO: Pull this from a config
-                        ;; file/env var instead
-                        :address (util/my-ip)
-                        :protocol :tcp}
-         :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
-         :session-token (util/random-uuid)
-         ;; FIXME: This needs to be the public key of the action-url
-         :public-key (util/random-uuid)
-         ;; It's tempting to make this a "real" URL instance
-         ;; But clojure doesn't auto-serialize those over EDN
-         :static-url "http://localhost:9000/index.html"))
+  (let [br {:tag :br, :attrs nil, :content nil}]
+    (assoc msg
+           :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
+           :session-token (util/random-uuid)
+           :world {:data {:type :html
+                          :version 5
+                          ;; TODO: At the very least, use something like enlive/kioo instead
+                          :body {:tag :form
+                                 :attrs {:id "authenticate"}
+                                 :content ["User name:"
+                                           br
+                                           {:tag :input
+                                            :attrs {:name "principal-name" :type "text"}
+                                            :content nil}
+                                           br
+                                           "\nPassword:"
+                                           br
+                                           {:tag :input
+                                            :attrs {:name "auth-token" :type "password"}
+                                            :content nil}
+                                           br
+                                           {:tag :input
+                                            :attrs {:name "submit" :type "submit" :value "Log In"}
+                                            :content nil}]}}
+                   ;; This basic script was taken from
+                   ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
+                   ;; Vital assumptions here:
+                   ;; 1. Basic clojurescript environment
+                   ;; 2. use'ing the core.async ns
+                   ;; 3. require'd goog.dom as dom and goog.events as events
+                   ;; Or, at least, that we're in an interpreter
+                   ;; environment/namespace
+                   ;; that acts as if those assumptions are true
+                   :script [(defn listen [element event-type]
+                              (let [out (chan)]
+                                (events/listen element event-type
+                                               (fn [e]
+                                                 (put! out e)))
+                                out))
+                            (let [clicks (listen (dom/getElement "submit") "click")]
+                              (go (while true
+                                    (raise :start-here)
+                                    (let [clicked (<! clicks)
+                                          ]))))]
+                   ;; TODO: Definitely use garden to build something here
+                   :css []})))
+
+(comment
+  (require '[clojure.xml :as xml])
+  ;; Figure out how to go from html string to internal XML format
+  (let [form "<form>
+User name:<br />
+<input type=\"text\" name=\"principal-name\" /><br />
+Password:<br />
+<input type=\"password\" name=\"auth-token\" /><br />
+<input type=\"submit\" value=\"Log In\" />
+</form>"
+        istream (-> form .getBytes java.io.ByteArrayInputStream.)]
+    (xml/parse istream))
+  )
 
 (s/defn possibly-authorize!
   "TODO: This desperately needs to happen in a background thread.
