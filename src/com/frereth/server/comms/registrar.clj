@@ -88,7 +88,7 @@ c.f. auth-socket's dispatch"
     (assoc msg
            :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
            :session-token (util/random-uuid)
-           :world {:data {:type :html
+           :world '{:data {:type :html
                           :version 5
                           ;; TODO: At the very least, use something like enlive/kioo instead
                           :body {:tag :form
