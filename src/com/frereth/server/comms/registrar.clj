@@ -86,50 +86,54 @@ c.f. auth-socket's dispatch"
   ;; TODO: Set up a web server and go back to doing it this way
   (let [br {:tag :br, :attrs nil, :content nil}]
     (assoc msg
+           :action-url {:port 7841  ; FIXME: Magic Number
+                        ;; TODO: Pull this from a config file/env var instead
+                        :address (util/my-ip)
+                        :protocol :tcp}
            :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
            :session-token (util/random-uuid)
            :world '{:data {:type :html
-                          :version 5
-                          ;; TODO: At the very least, use something like enlive/kioo instead
-                          :body {:tag :form
-                                 :attrs {:id "authenticate"}
-                                 :content ["User name:"
-                                           br
-                                           {:tag :input
-                                            :attrs {:name "principal-name" :type "text"}
-                                            :content nil}
-                                           br
-                                           "\nPassword:"
-                                           br
-                                           {:tag :input
-                                            :attrs {:name "auth-token" :type "password"}
-                                            :content nil}
-                                           br
-                                           {:tag :input
-                                            :attrs {:name "submit" :type "submit" :value "Log In"}
-                                            :content nil}]}}
-                   ;; This basic script was taken from
-                   ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
-                   ;; Vital assumptions here:
-                   ;; 1. Basic clojurescript environment
-                   ;; 2. use'ing the core.async ns
-                   ;; 3. require'd goog.dom as dom and goog.events as events
-                   ;; Or, at least, that we're in an interpreter
-                   ;; environment/namespace
-                   ;; that acts as if those assumptions are true
-                   :script [(defn listen [element event-type]
-                              (let [out (chan)]
-                                (events/listen element event-type
-                                               (fn [e]
-                                                 (put! out e)))
-                                out))
-                            (let [clicks (listen (dom/getElement "submit") "click")]
-                              (go (while true
-                                    (raise :start-here)
-                                    (let [clicked (<! clicks)
-                                          ]))))]
-                   ;; TODO: Definitely use garden to build something here
-                   :css []})))
+                           :version 5
+                           ;; TODO: At the very least, use something like enlive/kioo instead
+                           :body {:tag :form
+                                  :attrs {:id "authenticate"}
+                                  :content ["User name:"
+                                            br
+                                            {:tag :input
+                                             :attrs {:name "principal-name" :type "text"}
+                                             :content nil}
+                                            br
+                                            "\nPassword:"
+                                            br
+                                            {:tag :input
+                                             :attrs {:name "auth-token" :type "password"}
+                                             :content nil}
+                                            br
+                                            {:tag :input
+                                             :attrs {:name "submit" :type "submit" :value "Log In"}
+                                             :content nil}]}
+                           ;; This basic script was taken from
+                           ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
+                           ;; Vital assumptions here:
+                           ;; 1. Basic clojurescript environment
+                           ;; 2. use'ing the core.async ns
+                           ;; 3. require'd goog.dom as dom and goog.events as events
+                           ;; Or, at least, that we're in an interpreter
+                           ;; environment/namespace
+                           ;; that acts as if those assumptions are true
+                           :script [(defn listen [element event-type]
+                                      (let [out (chan)]
+                                        (events/listen element event-type
+                                                       (fn [e]
+                                                         (put! out e)))
+                                        out))
+                                    (let [clicks (listen (dom/getElement "submit") "click")]
+                                      (go (while true
+                                            (raise :start-here)
+                                            (let [clicked (<! clicks)
+                                                  ]))))]
+                           ;; TODO: Definitely use garden to build something here
+                           :css []}})))
 
 (comment
   (require '[clojure.xml :as xml])
