@@ -95,23 +95,13 @@ c.f. auth-socket's dispatch"
            :world '{:data {:type :html
                            :version 5
                            ;; TODO: At the very least, use something like enlive/kioo instead
-                           :body {:tag :form
-                                  :attrs {:id "authenticate"}
-                                  :content ["User name:"
-                                            br
-                                            {:tag :input
-                                             :attrs {:name "principal-name" :type "text"}
-                                             :content nil}
-                                            br
-                                            "\nPassword:"
-                                            br
-                                            {:tag :input
-                                             :attrs {:name "auth-token" :type "password"}
-                                             :content nil}
-                                            br
-                                            {:tag :input
-                                             :attrs {:name "submit" :type "submit" :value "Log In"}
-                                             :content nil}]}
+                           :body "<form id='authenticate'>
+User name:<br>
+<input name='principal-name' type='text'><br>
+Password:
+<input name='auth-token' type='password'><br>
+<input name='submit' type='submit' value='Log In'>"
+
                            ;; This basic script was taken from
                            ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
                            ;; Vital assumptions here:
