@@ -92,15 +92,22 @@ c.f. auth-socket's dispatch"
                         :protocol :tcp}
            :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
            :session-token (util/random-uuid)
-           :world '{:data {:type :html
-                           :version 5
+           :world '{:data {:type :om
+                           :version [0 9 0]
                            ;; TODO: At the very least, use something like enlive/kioo instead
-                           :body "<form id='authenticate'>
-User name:<br>
-<input name='principal-name' type='text'><br>
-Password:
-<input name='auth-token' type='password'><br>
-<input name='submit' type='submit' value='Log In'>"
+                           :body '(form {:attr {:id "authenticate"}
+                                         :content ["User name:"
+                                                   (br)
+                                                   (input {:attr {:name "principal-name",
+                                                                  :type "text"}
+                                                           :content [(br)
+                                                                     "Password:"
+                                                                     (input {:attr {:name "auth-token"
+                                                                                    :type "password"}
+                                                                             :content [(br)]})
+                                                                     (input {:attr {:name "submit"
+                                                                                    :type "submit"
+                                                                                    :value "Log In"}})]})]})
 
                            ;; This basic script was taken from
                            ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
