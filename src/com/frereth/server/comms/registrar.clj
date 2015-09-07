@@ -99,7 +99,7 @@ Enlive/kioo is super attractive...but the model of specifying URLs to get the te
 So give salono a shot."
   []
   (let [body (define-world-in-sablono)]
-    '{data (assoc body
+    {:data (assoc body
                   :name "Initial Local Login"
                   ;; This basic script was taken from
                   ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
@@ -110,17 +110,16 @@ So give salono a shot."
                   ;; Or, at least, that we're in an interpreter
                   ;; environment/namespace
                   ;; that acts as if those assumptions are true
-                  :script [(defn listen [element event-type]
-                             (let [out (chan)]
-                               (events/listen element event-type
-                                              (fn [e]
-                                                (put! out e)))
-                               out))
-                           (let [clicks (listen (dom/getElement "submit") "click")]
-                             (go (while true
-                                   (raise :start-here)
-                                   (let [clicked (<! clicks)
-                                         ]))))]
+                  :script '[(defn listen [element event-type]
+                              (let [out (chan)]
+                                (events/listen element event-type
+                                               (fn [e]
+                                                 (put! out e)))
+                                out))
+                            (let [clicks (listen (dom/getElement "submit") "click")]
+                              (go (while true
+                                    (let [clicked (<! clicks)]
+                                      (raise :start-here)))))]
                   ;; TODO: Definitely use garden to build something here
                   :css [])}))
 
