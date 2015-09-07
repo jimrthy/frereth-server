@@ -51,6 +51,79 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
 
+(defn define-world-om
+  []
+  (let [br {:tag :br, :attrs nil, :content nil}]
+    {:type :om
+     :version [0 9 0]
+     ;; TODO: At the very least, use something like enlive/kioo instead
+     ;; Note that this nesting seems pretty awfully incorrect
+     :body '(form {:attr {:id "authenticate"}
+                   :content ["User name:"
+                             (br)
+                             (input {:attr {:name "principal-name",
+                                            :type "text"}
+                                     :content [(br)
+                                               "Password:"
+                                               (input {:attr {:name "auth-token"
+                                                              :type "password"}
+                                                       :content [(br)]})
+                                               (input {:attr {:name "submit"
+                                                              :type "submit"
+                                                              :value "Log In"}})]})]})}))
+
+(defn define-world-in-sablono
+  []
+  {:type :sablono
+   :version [0 3 6]
+   :body [:div {:id "authenticate"}
+          "User name:"
+          :br
+          :input {:name "principal-name"
+                  :type "text"}
+          :br
+          "Password:"
+          :br
+          :input {:name "auth-token"
+                  :type "password"}
+          :br
+          :input {:name "submit"
+                  :type "submit"
+                  :value "Log In"}]})
+
+(defn define-initial-auth-world
+  "Because I'm having issues sending data in a format that makes sense to render.
+Raw HTML was/is a giant FAIL.
+Creating my own DSL to describe Om seems like a horrible idea.
+Enlive/kioo is super attractive...but the model of specifying URLs to get the template to render fails abjectly.
+So give salono a shot."
+  []
+  (let [body (define-world-in-sablono)]
+    '{data (assoc body
+                  :name "Initial Local Login"
+                  ;; This basic script was taken from
+                  ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
+                  ;; Vital assumptions here:
+                  ;; 1. Basic clojurescript environment
+                  ;; 2. use'ing the core.async ns
+                  ;; 3. require'd goog.dom as dom and goog.events as events
+                  ;; Or, at least, that we're in an interpreter
+                  ;; environment/namespace
+                  ;; that acts as if those assumptions are true
+                  :script [(defn listen [element event-type]
+                             (let [out (chan)]
+                               (events/listen element event-type
+                                              (fn [e]
+                                                (put! out e)))
+                               out))
+                           (let [clicks (listen (dom/getElement "submit") "click")]
+                             (go (while true
+                                   (raise :start-here)
+                                   (let [clicked (<! clicks)
+                                         ]))))]
+                  ;; TODO: Definitely use garden to build something here
+                  :css [])}))
+
 (s/defn authcz :- auth-socket/router-message
   "This needs to do much, much more.
 Check the database for rbac. Set up a real session
@@ -84,53 +157,14 @@ c.f. auth-socket's dispatch"
                   pretty-msg))
   (log/warn "Set up a web server and switch back to serving data that way")
   ;; TODO: Set up a web server and go back to doing it this way
-  (let [br {:tag :br, :attrs nil, :content nil}]
-    (assoc msg
-           :action-url {:port 7841  ; FIXME: Magic Number
-                        ;; TODO: Pull this from a config file/env var instead
-                        :address (util/my-ip)
-                        :protocol :tcp}
-           :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
-           :session-token (util/random-uuid)
-           :world '{:data {:type :om
-                           :version [0 9 0]
-                           ;; TODO: At the very least, use something like enlive/kioo instead
-                           :body '(form {:attr {:id "authenticate"}
-                                         :content ["User name:"
-                                                   (br)
-                                                   (input {:attr {:name "principal-name",
-                                                                  :type "text"}
-                                                           :content [(br)
-                                                                     "Password:"
-                                                                     (input {:attr {:name "auth-token"
-                                                                                    :type "password"}
-                                                                             :content [(br)]})
-                                                                     (input {:attr {:name "submit"
-                                                                                    :type "submit"
-                                                                                    :value "Log In"}})]})]})
-
-                           ;; This basic script was taken from
-                           ;; http://swannodette.github.io/2013/11/07/clojurescript-101/
-                           ;; Vital assumptions here:
-                           ;; 1. Basic clojurescript environment
-                           ;; 2. use'ing the core.async ns
-                           ;; 3. require'd goog.dom as dom and goog.events as events
-                           ;; Or, at least, that we're in an interpreter
-                           ;; environment/namespace
-                           ;; that acts as if those assumptions are true
-                           :script [(defn listen [element event-type]
-                                      (let [out (chan)]
-                                        (events/listen element event-type
-                                                       (fn [e]
-                                                         (put! out e)))
-                                        out))
-                                    (let [clicks (listen (dom/getElement "submit") "click")]
-                                      (go (while true
-                                            (raise :start-here)
-                                            (let [clicked (<! clicks)
-                                                  ]))))]
-                           ;; TODO: Definitely use garden to build something here
-                           :css []}})))
+  (assoc msg
+         :action-url {:port 7841  ; FIXME: Magic Number
+                      ;; TODO: Pull this from a config file/env var instead
+                      :address (util/my-ip)
+                      :protocol :tcp}
+         :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
+         :session-token (util/random-uuid)
+         :world (define-initial-auth-world)))
 
 (comment
   (require '[clojure.xml :as xml])
