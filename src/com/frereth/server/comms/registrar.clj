@@ -92,11 +92,6 @@
                   :value "Log In"}]})
 
 (defn define-initial-auth-world
-  "Because I'm having issues sending data in a format that makes sense to render.
-Raw HTML was/is a giant FAIL.
-Creating my own DSL to describe Om seems like a horrible idea.
-Enlive/kioo is super attractive...but the model of specifying URLs to get the template to render fails abjectly.
-So give salono a shot."
   []
   (let [body (define-world-in-sablono)]
     {:data (assoc body
@@ -155,7 +150,7 @@ c.f. auth-socket's dispatch"
        (log/debug "Trying to supply the Action channel in response to:\n"
                   pretty-msg))
   (log/warn "Set up a web server and switch back to serving data that way")
-  ;; TODO: Set up a web server and go back to doing it this way
+  ;; TODO: Set up a web server and go back to just sending the URL
   (assoc msg
          :action-url {:port 7841  ; FIXME: Magic Number
                       ;; TODO: Pull this from a config file/env var instead
