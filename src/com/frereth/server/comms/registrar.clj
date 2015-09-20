@@ -105,7 +105,14 @@
                   ;; Or, at least, that we're in an interpreter
                   ;; environment/namespace
                   ;; that acts as if those assumptions are true
-                  :script '[(defn listen [element event-type]
+                  :script '[(ns empty.world
+                                 "Need a naming scheme
+Although, honestly, for now, user makes as much sense as any"
+                                 (:require-macros [cljs.core.async.macros :as asyncm :refer (go go-loop)])
+                                 (:require [cljs.core.async :as async]
+                                           [goog.dom :as dom]
+                                           [goog.events :as events]))
+                            (defn listen [element event-type]
                               (let [out (chan)]
                                 (events/listen element event-type
                                                (fn [e]
