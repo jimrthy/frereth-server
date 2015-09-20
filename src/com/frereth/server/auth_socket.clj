@@ -1,5 +1,10 @@
 (ns com.frereth.server.auth-socket
-  "Messaging pieces for handling the authentication socket."
+  "Messaging pieces for handling the authentication socket.
+
+This is really my original prototype code, trying to set up a
+handshake with a client.
+
+It's really still a 'next step' sort of thing."
   (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]

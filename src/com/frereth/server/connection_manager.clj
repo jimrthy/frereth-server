@@ -2,7 +2,14 @@
   "Poorly chosen name. principal-wrangler seems like it would have been more appropriate.
 
 This namespace is really a prototype version of managing users.
-Which really doesn't belong in here at all."
+Which really doesn't belong in here at all.
+
+It might make sense to have a shiro/friend layer as part of a demo/proof of concept.
+And it should tie in with a database.
+
+Those are really more tiers, in a real system.
+
+Then again, I still need to handle the basics for plain ol' humble localhost."
   (:require [com.stuartsierra.component :as component]
             [com.frereth.common.schema :as fr-skm]
             [ribol.core :refer (raise)]
