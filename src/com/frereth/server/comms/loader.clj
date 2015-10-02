@@ -1,4 +1,4 @@
-(ns com.frereth.web.loader
+(ns com.frereth.server.comms.loader
   "Feeding raw script objects to the browser
 
 I'm very torn about whether this belongs here or in the client
