@@ -139,6 +139,9 @@ c.f. auth-socket's dispatch"
                         (catch RuntimeException ex
                           (log/error ex "Trying to pretty-format for logging REQUEST\n"
                                      "N.B. This should absolutely never happen")))
+        ;; For when there's a web server to "really" serve things like the login dialog
+        ;; Note that the :action-url is grossly inappropriate here
+        ;; It shouldn't turn up until after the end-user has been authcz'd
         information-to-share-later {:action-url {:port 7841  ; FIXME: magic number
                                                  ;; TODO: Pull this from a config
                                                  ;; file/env var instead
@@ -159,27 +162,10 @@ c.f. auth-socket's dispatch"
   (log/warn "Set up a web server and switch back to serving data that way")
   ;; TODO: Set up a web server and go back to just sending the URL
   (assoc msg
-         :action-url {:port 7841  ; FIXME: Magic Number
-                      ;; TODO: Pull this from a config file/env var instead
-                      :address (util/my-ip)
-                      :protocol :tcp}
          :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
+         ;; TODO: Make this something meaningful
          :session-token (util/random-uuid)
          :world (define-initial-auth-world)))
-
-(comment
-  (require '[clojure.xml :as xml])
-  ;; Figure out how to go from html string to internal XML format
-  (let [form "<form>
-User name:<br />
-<input type=\"text\" name=\"principal-name\" /><br />
-Password:<br />
-<input type=\"password\" name=\"auth-token\" /><br />
-<input type=\"submit\" value=\"Log In\" />
-</form>"
-        istream (-> form .getBytes java.io.ByteArrayInputStream.)]
-    (xml/parse istream))
-  )
 
 (s/defn possibly-authorize!
   "TODO: This desperately needs to happen in a background thread.
