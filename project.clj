@@ -8,7 +8,6 @@
                  [com.datomic/datomic-free "0.9.5206" :exclusions [joda-time org.clojure/clojure]]
                  [com.frereth/common "0.0.1-SNAPSHOT"]
                  [com.postspectacular/rotor "0.1.0"]
-                 [com.stuartsierra/component "0.2.3"]
                  [datomic-schema "1.3.0" :exclusions [org.clojure/clojure]]
                  ;; TODO: This really doesn't belong in here
                  [io.rkn/conformity "0.3.5"]
