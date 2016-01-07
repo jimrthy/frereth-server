@@ -28,16 +28,7 @@ be set by environment variables instead"
                             :protocol :tcp}
                       :direction :bind
                       :sock-type :router}]
-    {;; Almost definitely want to maximize this thread count
-     ;; Although that really depends on the environment.
-     ;; It makes sense for a production server.
-     ;; For a local one...probably not so much.
-     ;; Q: Why not?
-     ;; A: Well, context switches come to mind. I'm not
-     ;; sure whether I buy that that would be an issue.
-     :context {:thread-count (-> (util/core-count) dec (max 1))}
-
-     :action-socket (assoc-in default-sock [:url :port] 7841)
+    {:action-socket (assoc-in default-sock [:url :port] 7841)
      :action-loop {:_name "Action!"}
      :action-loop-interface {:in-chan (async/chan)
                              :external-reader (fn [_]
@@ -47,6 +38,16 @@ be set by environment variables instead"
 
      :auth-socket (assoc-in default-sock [:url :port] 7843)
      :auth-loop {:_name "authcz"}
+
+     ;; Almost definitely want to maximize this thread count
+     ;; Although that really depends on the environment.
+     ;; It makes sense for a production server.
+     ;; For a local one...probably not so much.
+     ;; Q: Why not?
+     ;; A: Well, context switches come to mind. I'm not
+     ;; sure whether I buy that that would be an issue.
+     ;; Whichever approach makes the most sense, we have to have at least 1.
+     :context {:thread-count (-> (util/core-count) dec (max 1))}
 
      :control-socket (assoc default-sock
                             :url {:protocol :inproc
