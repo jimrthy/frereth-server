@@ -187,7 +187,8 @@ Of course, that direction gets complicated quickly. KISS for now."
                    (util/pretty response))))
     (catch RuntimeException ex
       (log/error ex "At this level, really should have been handled via ribol")
-      (throw))))
+      ;; Q: Does this retain the stack trace?
+      (throw ex))))
 
 (s/defn do-registrations :- com-skm/async-channel
   ;; TODO: This really seems like it should be a defnk
@@ -210,7 +211,7 @@ Of course, that direction gets complicated quickly. KISS for now."
             (catch Exception ex
               (log/error ex "Trying to authorize:\n" v)))
           (if (not= c in<-)
-            (log/debug "do-registrations: heartbeat")
+            (log/debug "do-registrations: internal heartbeat")
             (do
               (log/debug "Signalling loop exit")
               (deliver done true))))

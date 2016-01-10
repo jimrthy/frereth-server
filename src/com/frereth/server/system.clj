@@ -7,7 +7,7 @@
    [component-dsl.system :as cpt-dsl]
    [schema.core :as s]
    [taoensso.timbre :as log])
-  (import [com.frereth.common.async_zmq EventPair EventPairInterface]
+  (import #_[com.frereth.common.async_zmq EventPair EventPairInterface]
           [com.stuartsierra.component SystemMap]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60,6 +60,13 @@ be set by environment variables instead"
                                                  (throw (ex-info "Control Loop Writer: Not Implemented" {})))}}))
 
 (defn structure []
+  ;; Note that this is overly simplified.
+  ;; It would be crazy to mix the auth and action servers in the same process.
+  ;; And the idea for a control socket was never a good idea.
+  ;; But...
+  ;; it seems to make sense as a starting point.
+  ;; Q: Would it make life simpler if I split these all into their
+  ;; own processes?
   '{:action-loop com.frereth.common.async-zmq/ctor
     :action-loop-interface com.frereth.common.async-zmq/ctor-interface
     :action-socket com.frereth.common.zmq-socket/ctor
