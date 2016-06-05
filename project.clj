@@ -5,21 +5,15 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.4"]
-                 [com.datomic/datomic-free "0.9.5206" :exclusions [joda-time org.clojure/clojure]]
                  [com.frereth/common "0.0.1-SNAPSHOT"]
                  [com.postspectacular/rotor "0.1.0"]
-                 [com.stuartsierra/component "0.2.3"]
-                 [com.taoensso/timbre "3.4.0"]
+                 ;; If I'm going to use this, it should probably be part of substratum instead
                  [datomic-schema "1.3.0" :exclusions [org.clojure/clojure]]
-                 [im.chit/ribol "0.4.0"]
-                 ;; TODO: This really doesn't belong in here
-                 [io.rkn/conformity "0.3.5"]
-                 ;; I'm not using these, but com.palletops/uberimage and lein-ancient
-                 ;; (in my profiles.clj)
-                 ;; are competing over older versions
-                 [org.apache.httpcomponents/httpclient "4.4.1"]
-                 [org.apache.httpcomponents/httpcore "4.4.1"]
-                 [org.apache.httpcomponents/httpmime "4.4.1"]
+                 ;; TODO: Switch to hara.event
+                 ;; And, really, I should inherit this from frereth.common
+                 ;; But, this is a good reminder to switch everything in here
+                 ;; over to hara once I switch that.
+                 [im.chit/ribol "0.4.1"]
                  ;; For now, this next library needs to be distributed to
                  ;; a local maven repo.
                  ;; It seems like it should really take care of its handler
@@ -27,15 +21,15 @@
                  ;; it gets more complicated. Still, we shouldn't be worrying
                  ;; about details like jeromq vs jzmq here.
                  ;;[org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
-                 [org.clojure/clojure "1.7.0-RC1"]
+                 [org.clojure/clojure "1.8.0"]
                  [org.zeromq/cljzmq "0.1.4"]
-                 [prismatic/schema "0.4.3"]]
+                 [com.jimrthy.substratum "0.1.0-SNAPSHOT"]]
   ;; Q: Is there a good way to move the extra library path up into common?
   ;; Better Q: Now that I've copied it into common, do I still need this here and in client?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))
              "-Djava.awt.headless=true"]
   :main frereth.server.core
-  :profiles {:dev {:dependencies [[org.clojure/java.classpath "0.2.2"
+  :profiles {:dev {:dependencies [[org.clojure/java.classpath "0.2.3"
                                    :exclusions [org.clojure/clojure]]]
                    :plugins [[org.clojure/tools.namespace "0.2.11" :exclusions [org.clojure/clojure]]
                              #_[org.clojure/java.classpath "0.2.2"]]
