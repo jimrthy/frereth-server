@@ -38,7 +38,9 @@ be set by environment variables instead"
      ;; A: Well, context switches come to mind. I'm not
      ;; sure whether I buy that that would be an issue.
      ;; Whichever approach makes the most sense, we have to have at least 1.
-     :context {:thread-count (-> (util/core-count) dec (max 1))}}))
+     :context {:thread-count (-> (util/core-count) dec (max 1))}
+     :plugin-manager {:default-port 7843
+                      :root-namespace 'root}}))
 
 (defn structure []
   ;; Note that this is overly simplified.
@@ -54,7 +56,8 @@ be set by environment variables instead"
     :plugin-manager com.frereth.server.plugin/ctor})
 
 (defn dependencies []
-  {:plugin-manager {:ctx :context}})
+  {:plugin-manager {:ctx :context
+                    :done :done}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
