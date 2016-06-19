@@ -4,7 +4,7 @@
 This is really my original prototype code, trying to set up a
 handshake with a client.
 
-It's really still a 'next step' sort of thing."
+In all reality, this should just be another App."
   (:require [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
@@ -232,7 +232,7 @@ its thing. Circular references are bad, mmkay?"
      auth-port]
     (log/info (str "Kicking off the authentication runner thread in context: "
                    ctx "\nwaiting on Done Reference " done-reference))
-
+    (throw (ex-info "Obsolete" {:caveat "At least, it strongly seems that way"}))
     (async/thread (authenticator ctx done-reference auth-port))))
 
 (s/defn reader :- router-message
