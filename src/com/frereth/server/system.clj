@@ -39,8 +39,7 @@ be set by environment variables instead"
      ;; sure whether I buy that that would be an issue.
      ;; Whichever approach makes the most sense, we have to have at least 1.
      :context {:thread-count (-> (util/core-count) dec (max 1))}
-     :plugin-manager {:default-port 7843
-                      :root-namespace 'root}}))
+     :plugin-manager {:base-port 7843}}))
 
 (defn structure []
   ;; Note that this is overly simplified.
