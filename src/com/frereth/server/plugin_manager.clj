@@ -19,7 +19,25 @@ want to add Daemons (that's really what getty is, right?), but start
 ;;; Schema/specs
 
 (def ProcessMap
-  "Really a  (atom {UUID EventInterface})"
+  "Really a  (atom {UUID EventInterface})
+
+  Note that this is really a fairly drastic departure from my initial
+  plans (or, at least, it looks that way as I'm trying to remember where
+  I was last time).
+
+  My original intention was to have 3 distinct and long-lived EventLoop
+  instances with very firm delineations between duties.
+
+  That doesn't make the current plan of just creating one EventLoop per
+  App all that inferior (it does limit Apps to available ports, but that
+  doesn't seem too awful), but I do need to decide whether I want to segregate
+  Apps at the socket level or just have them all sharing the same socket.
+
+  There are always trade-offs, but one socket/event loop per App really
+  does seem like the obvious approach here.
+  TODO: Think about the down sides. They must exist.
+
+  First obvious one: more holes in your firewall."
   frereth-schema/atom-type)
 
 (declare load-plugin)
