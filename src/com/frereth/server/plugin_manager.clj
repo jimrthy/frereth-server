@@ -99,7 +99,7 @@
                              :external-writer external-writer
                              :_name -name})))
 
-(s/defn load-plugin :- EventInterface
+(s/defn load-plugin :- EventPairInterface
   [this :- PluginManager
    path :- [s/Symbol]]
   (if-let [app (-> this :processes deref (get path))]
@@ -124,4 +124,4 @@
 
 (s/defn ctor :- PluginManager
   [options]
-  (map->PluginManager (select-in options :base-port)))
+  (map->PluginManager (select-keys options [:base-port])))

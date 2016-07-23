@@ -5,7 +5,8 @@ This is really my original prototype code, trying to set up a
 handshake with a client.
 
 In all reality, this should just be another App."
-  (:require [cljeromq.core :as mq]
+  (:require [cljeromq.common :as mq-cmn]
+            [cljeromq.core :as mq]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
             [clojure.core.async :as async :refer (<! <!! >! >!!)]
@@ -239,11 +240,11 @@ its thing. Circular references are bad, mmkay?"
   ;; This is responsible for translating
   ;; a message that it reads from the socket into
   ;; something useful
-  [sock :- mq/Socket]
+  [sock :- mq-cmn/Socket]
   (com-comm/router-recv! sock))
 
 (s/defn writer
-  [sock :- mq/Socket
+  [sock :- mq-cmn/Socket
    msg :- router-message]
   (log/debug "Sending router message:\n"
              (util/pretty msg))
