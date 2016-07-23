@@ -1,0 +1,24 @@
+{:engine :google/incremental-dom
+ :version [0 0 1]
+ :world-code [(defn on-render []
+                (element-open :form)
+                (element-void :input "user-id" {:id "user-id"
+                                                :placeholder "Name"})
+                (element-void :input "password" {:id "password"
+                                                 :placeholder "Password"})
+                (element-open :button "login-submit")
+                (text "Submit")
+                (element-close :button)
+                (element-close :form))]
+ ;; Put the browser-level event handlers here
+ ;; Note that we still need proxies to connect
+ ;; to the "real" virtual DOM to keep these
+ ;; isolated in their Web Worker
+ :world-events {"login-submit" }
+ ;;; TODO: Still need "universe"-code that runs on the
+ ;;; server.
+ ;;; And a way to specify which database resources
+ ;;; are involved...though they don't belong in this
+ ;;; script. They're really part of the App
+ ;;; installation process
+ }
