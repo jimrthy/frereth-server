@@ -7,11 +7,12 @@
   (:require [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [com.frereth.common.async-zmq :as async-zmq]
             [com.frereth.common.schema :as frereth-schema]
             [component-dsl.done-manager :as sentinal]
             [com.stuartsierra.component :as cpt]
             [schema.core :as s])
-  (:import [com.frereth.common.async_zmq EventPair]
+  (:import [com.frereth.common.async_zmq EventPairInterface]
            [com.frereth.common.zmq_socket ContextWrapper]
            [java.util UUID]))
 
@@ -19,7 +20,7 @@
 ;;; Schema/specs
 
 (def ProcessMap
-  "Really a  (atom {UUID EventInterface})
+  "Really a  (atom {UUID EventPairInterface})
 
   Note that this is really a fairly drastic departure from my initial
   plans (or, at least, it looks that way as I'm trying to remember where
@@ -43,7 +44,7 @@
 (declare load-plugin)
 (s/defrecord PluginManager [base-port :- s/Int
                             ctx :- ContextWrapper
-                            done :- sentinal/monitor
+                            done ; Should probably turn that promise into a record
                             processes :- ProcessMap]
   cpt/Lifecycle
   (start [this]
@@ -54,7 +55,7 @@
   (stop [this]
     (when processes
       (doseq [p (vals @processes)]
-        (component/stop p))
+        (cpt/stop p))
       (reset! processes {}))
     this))
 
@@ -74,7 +75,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
 
-(s/defn start-event-loop! :- EventInterface
+(s/defn start-event-loop! :- EventPairInterface
   [this :- PluginManager
    source :- SourceCode]
   (let [ex-sock nil  ;; TODO: Need to create/bind this to a random(?) port
@@ -86,7 +87,12 @@
         external-reader nil
         external-writer nil
         -name (:name source)]
+    ;; Just initialized pretty much everything to nil as a place-holder
+    ;; to get the basic app shape slapped together
     (throw (ex-info "FIXME: Need meaningful values" {}))
+    ;; Q: What did I really intend to happen here?
+    ;; Maybe async-zmq/ctor-interface?
+    ;; Except that it would still need to be started
     (async-zmq/event-system {:ex-sock ex-sock
                              :in-chan in-chan
                              :external-reader external-reader
