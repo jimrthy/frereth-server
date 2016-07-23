@@ -50,7 +50,7 @@ be set by environment variables instead"
   ;; Q: Would it make life simpler if I split these all into their
   ;; own processes?
   '{:context com.frereth.common.zmq-socket/ctx-ctor
-    :done com.frereth.server.sentinal/ctor
+    :done component-dsl.done-manager/ctor
     :logger com.frereth.server.logging/ctor
     :plugin-manager com.frereth.server.plugin/ctor})
 

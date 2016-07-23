@@ -12,4 +12,5 @@
 ;;; Public
 
 (s/defn ctor [_] :- monitor
+  (throw (ex-info "Obsolete" {:reason "Re-inventing wheel"}))
   {:done (promise)})

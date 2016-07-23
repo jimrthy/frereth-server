@@ -1,14 +1,14 @@
 (ns com.frereth.server.plugin-manager
   "Organize all the 'interesting' pieces that actually do things.
 
-For starters, everything's going to be an App. I'll almost definitely
-want to add Daemons (that's really what getty is, right?), but start
+  For starters, everything's going to be an App. I'll almost definitely
+  want to add Daemons (that's really what getty is, right?), but start
   with this approach"
   (:require [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [com.frereth.common.schema :as frereth-schema]
-            [com.frereth.system.sentinal :as sentinal]
+            [component-dsl.done-manager :as sentinal]
             [com.stuartsierra.component :as cpt]
             [schema.core :as s])
   (:import [com.frereth.common.async_zmq EventPair]
