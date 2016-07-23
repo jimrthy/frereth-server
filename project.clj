@@ -11,6 +11,7 @@
                  [com.stuartsierra/component "0.3.1"]
                  [com.taoensso/timbre "4.4.0"]
                  [datomic-schema "1.3.0" :exclusions [org.clojure/clojure]]
+                 ;; TODO: Update to hara.events
                  [im.chit/ribol "0.4.1"]
                  ;; TODO: This really doesn't belong in here
                  [io.rkn/conformity "0.4.0"]
@@ -36,7 +37,8 @@
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))
              "-Djava.awt.headless=true"]
   :main frereth.server.core
-  :profiles {:dev {:dependencies [[org.clojure/java.classpath "0.2.3"
+  :profiles {:dev {:dependencies [[org.clojure/tools.namespace "0.2.11"]
+                                  [org.clojure/java.classpath "0.2.3"
                                    :exclusions [org.clojure/clojure]]]
                    :plugins [[org.clojure/tools.namespace "0.2.11" :exclusions [org.clojure/clojure]]
                              #_[org.clojure/java.classpath "0.2.2"]]
