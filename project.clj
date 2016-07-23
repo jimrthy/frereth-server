@@ -30,7 +30,6 @@
                  ;;[org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
                  ;; Q: Why aren't I inheriting this from frereth-common?
                  [org.clojure/clojure "1.9.0-alpha5"]
-                 [org.zeromq/cljzmq "0.1.4"]
                  [prismatic/schema "1.1.2"]]
   ;; Q: Is there a good way to move the extra library path up into common?
   ;; Better Q: Now that I've copied it into common, do I still need this here and in client?

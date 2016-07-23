@@ -48,10 +48,10 @@
                             processes :- ProcessMap]
   cpt/Lifecycle
   (start [this]
-    (let [process-key ['getty]
-          getty-process (load-plugin this process-key)
-          process-map {process-key getty-process}]
-      (assoc this processes (atom process-map))))
+    (let [this (assoc this :processes (atom {}))
+          process-key ['getty]
+          getty-process (load-plugin this process-key)]
+      this))
   (stop [this]
     (when processes
       (doseq [p (vals @processes)]
@@ -102,22 +102,30 @@
 (s/defn load-plugin :- EventPairInterface
   [this :- PluginManager
    path :- [s/Symbol]]
-  (if-let [app (-> this :processes deref (get path))]
-    app
-    (let [path-names (map str path)
-          ;; Q: What's the equivalent for python's os.path_separator?
-          resource-path (clojure.string/join "/" path-names)]
-      ;; Q: Would this be worth putting in a database instead?
-      (if-let [url (io/resource resource-path)]
-        ;; Note that we really need a callback for when the App exits
-        (with-open [rdr (io/reader url)]
-          (let [source-code (edn/read rdr)]
-            ;; Note that this is really where sandboxes start to come
-            ;; into play. Maybe something like OSGi or even clojail
-            ;; (that's what convinced me to take a serious look it
-            ;; clojure in the first place, after all).
-            (swap! (:processes this) assoc path (start-event-loop! source-code))))
-        (throw (ex-info "Missing App" {:path resource-path}))))))
+  ;; This is really just a stepping stone. Apps have to go to a database
+  ;; rather than having anything that resembles file system access
+  ;; (even though, yes, eventually a database means a file)
+  (if-let [processes-atom (:processes this)]
+    (if-let [app (get @processes-atom path)]
+      app
+      (let [path-names (map str path)
+            ;; Q: What's the equivalent for python's os.path_separator?
+            resource-path (clojure.string/join "/" path-names)
+            file-path (str resource-path ".edn")]
+        (if-let [url (io/resource resource-path)]
+          ;; Note that we really need a callback for when the App exits
+          (with-open [rdr (io/reader url)]
+            (let [source-code (edn/read rdr)
+                  result (start-event-loop! source-code)]
+              ;; Note that this is really where sandboxes start to come
+              ;; into play. Maybe something like OSGi or even clojail
+              ;; (that's what convinced me to take a serious look it
+              ;; clojure in the first place, after all).
+              (swap! (:processes this) assoc path result)
+              result))
+          (throw (ex-info "Missing App" {:path resource-path})))))
+    (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
+                                                                                     :requested path)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

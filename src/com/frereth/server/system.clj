@@ -52,7 +52,7 @@ be set by environment variables instead"
   '{:context com.frereth.common.zmq-socket/ctx-ctor
     :done component-dsl.done-manager/ctor
     :logger com.frereth.server.logging/ctor
-    :plugin-manager com.frereth.server.plugin/ctor})
+    :plugin-manager com.frereth.server.plugin-manager/ctor})
 
 (defn dependencies []
   {:plugin-manager {:ctx :context
