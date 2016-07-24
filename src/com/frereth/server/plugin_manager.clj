@@ -126,19 +126,20 @@
               ;; strictly for the sake of getting that rope thrown
               ;; across the gorge.
               resource-path (clojure.string/join "/" path-names)
-              file-path (str resource-path ".edn")])
-        (if-let [url (io/resource resource-path)]
-          ;; Note that we really need a callback for when the App exits
-          (with-open [rdr (io/reader url)]
-            (let [source-code (edn/read rdr)
-                  result (start-event-loop! source-code)]
-              ;; Note that this is really where sandboxes start to come
-              ;; into play. Maybe something like OSGi or even clojail
-              ;; (that's what convinced me to take a serious look it
-              ;; clojure in the first place, after all).
-              (swap! (:processes this) assoc path result)
-              result))
-          (throw (ex-info "Missing App" {:path resource-path}))))
+              file-path (str resource-path ".edn")]
+          (if-let [url (io/resource app-path)]
+            ;; Note that we really need a callback for when the App exits
+            (with-open [rdr (io/reader url)]
+              (let [source-code (edn/read rdr)
+                    result (start-event-loop! source-code)]
+                ;; Note that this is really where sandboxes start to come
+                ;; into play. Maybe something like OSGi or even clojail
+                ;; (that's what convinced me to take a serious look it
+                ;; clojure in the first place, after all).
+                (swap! (:processes this) assoc path result)
+                result))
+            (throw (ex-info "Missing App" {:path resource-path}))))
+        (throw (ex-info "No App registered" {:path app-key})))
       (throw (ex-info "Unknown App" {:path path})))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
