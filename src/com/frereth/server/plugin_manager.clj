@@ -50,7 +50,7 @@
   (start [this]
     (let [this (assoc this :processes (atom {}))
           ;; TODO: This needs to be configurable
-          process-key [:login]
+          process-key :login
           getty-process (load-plugin this process-key)]
       this))
   (stop [this]
@@ -116,8 +116,9 @@
   ;; rather than having anything that resembles file system access
   ;; (even though, yes, eventually a database means a file)
   (if-let [processes-atom (:processes this)]
-    (if-let [app-key (get @processes-atom path)]
-      (if-let [app-path (process-map app-key)]
+    (if-let [existing-app (get @processes-atom path)]
+      existing-app   ; Q: What about processes that don't want to be multi-user? Since they're quite a bit simpler
+      (if-let [app-path (process-map path)]
         (let [path-names (map str app-path)
               ;; Q: What's the equivalent for python's os.path_separator?
               ;; A: Don't care. Since this is really going to be
@@ -127,9 +128,10 @@
               ;; across the gorge.
               resource-path (clojure.string/join "/" path-names)
               file-path (str resource-path ".edn")]
-          (if-let [url (io/resource app-path)]
-            ;; Note that we really need a callback for when the App exits
-            (with-open [rdr (io/reader url)]
+          (if-let [url (io/resource file-path)]
+            ;; Note that we really need a callback for when the browser side
+            ;; of an App exits so the server side can decide what to do.
+            (with-open [rdr (java.io.PushbackReader. (io/reader url))]
               (let [source-code (edn/read rdr)
                     result (start-event-loop! source-code)]
                 ;; Note that this is really where sandboxes start to come
@@ -138,9 +140,8 @@
                 ;; clojure in the first place, after all).
                 (swap! (:processes this) assoc path result)
                 result))
-            (throw (ex-info "Missing App" {:path resource-path}))))
-        (throw (ex-info "No App registered" {:path app-key})))
-      (throw (ex-info "Unknown App" {:path path})))
+            (throw (ex-info "Missing installed App" {:path resource-path}))))
+        (throw (ex-info "App not found" {:path path}))))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
 
