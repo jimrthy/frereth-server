@@ -1,24 +1,77 @@
-{:engine :google/incremental-dom
+{:rendering-engine :google/incremental-dom
  :version [0 0 1]
- :world-code [(defn on-render []
-                (element-open :form)
-                (element-void :input "user-id" {:id "user-id"
-                                                :placeholder "Name"})
-                (element-void :input "password" {:id "password"
-                                                 :placeholder "Password"})
-                (element-open :button "login-submit")
-                (text "Submit")
-                (element-close :button)
-                (element-close :form))]
+ ;; This is the code that actually runs in the browser's Web Worker.
+ ;; Really need to be able to specify library dependencies
+ ;; But this approach seems like a reasonable start.
+ :render-code [
+               ;; on-render will get called once with the current world state
+               ;; as its param. It should return a list of function calls
+               ;; for the rendering engine to run.
+               ;; TODO: Need to specify what these calls actually do
+               ;; (it will eventually be a thin lispified wrapper over google's
+               ;; incremental-dom library)
+               (defn on-render [_]
+                 '[(element-open :form)
+                   (element-void :input "user-id" {:id "user-id"
+                                                   :placeholder "Name"})
+                   (element-void :input "password" {:id "password"
+                                                    :placeholder "Password"})
+                   (element-open :button "login-submit")
+                   (text "Submit")
+                   (element-close :button)
+                   (element-close :form)])
+               (defn hash [password]
+                 ;; FIXME: This absolutely must be run through a 1-way hash
+                 ;; It seems like that process really should include a salt.
+                 ;; Or is best practice to just send the password to the server
+                 ;; and trust in TLS?
+                 password)]
  ;; Put the browser-level event handlers here
  ;; Note that we still need proxies to connect
  ;; to the "real" virtual DOM to keep these
  ;; isolated in their Web Worker
- :world-events {"login-submit" }
+ :render-events [{:element "login-submit"
+                   :events :click
+                   ;; The values stored in these DOM elements will be extracted
+                   ;; and passed to the handler when the event happens
+                   :dependencies ["user-id" "password"]
+                   ;; Although, really, it should just be receiving a) the "full" world
+                   ;; state...which happens to be the DOM and b) the event.
+                   ;; This needs/deserves more thought
+                   :handler (fn [{:keys [user-id password]}]
+                              ;; This is really a break from the Functional I/O
+                              ;; paper. There's a question about how big a break,
+                              ;; and how much less understandable this version
+                              ;; might be.
+                              ;; Go with this approach for now if only because it
+                              ;; seems more obvious at the moment.
+                              ;; Get it working first, then worry about getting it
+                              ;; to work well.
+                              ;; Rather than causing side-effects internally
+                              ;; (which *is* legal inside a Web Worker and
+                              ;; could happen anyway), event handlers should
+                              ;; return the message they want to post
+                              ;; Actually, this pattern seems so common and
+                              ;; obvious that I doubtlessly want a wrapper to
+                              ;; just specify it
+                              {:message :login/credentials
+                               :params {:user-id user-id
+                                        :password (hash password)}})}
+                 ;; Need to register a  "message" event handler inside the worker
+                 ;; Q: How does this work with the closure framework, since there's
+                 ;; no associated DOM element?
+                 ;; Assume the framework that I have to write to handle this example
+                 ;; will handle the "main thread" implementation(s).
+                 ;; Which seems like it could get extremely gnarly with lots of
+                 ;; workers tied to lots of different sockets.
+                 ;; But that's pretty much the entire point.
+                 {:events :message}]
  ;;; TODO: Still need "universe"-code that runs on the
  ;;; server.
  ;;; And a way to specify which database resources
  ;;; are involved...though they don't belong in this
  ;;; script. They're really part of the App
  ;;; installation process
+ ;;; For that matter...surely some of this makes sense at the "client" level...doesn't it?
+ ;;; (well, maybe not for something this simple. But more generally)
  }
