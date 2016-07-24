@@ -102,7 +102,7 @@
 
 (defn process-map
   [process-key]
-  (process-key {:login '[getty]
+  (process-key {:login '[login]
                 :shell '[sh]}))
 
 (s/defn load-plugin :- EventPairInterface
