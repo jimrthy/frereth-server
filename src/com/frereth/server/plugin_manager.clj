@@ -49,7 +49,8 @@
   cpt/Lifecycle
   (start [this]
     (let [this (assoc this :processes (atom {}))
-          process-key ['getty]
+          ;; TODO: This needs to be configurable
+          process-key [:login]
           getty-process (load-plugin this process-key)]
       this))
   (stop [this]
@@ -99,19 +100,33 @@
                              :external-writer external-writer
                              :_name -name})))
 
+(defn process-map
+  [process-key]
+  (process-key {:login '[getty]
+                :shell '[sh]}))
+
 (s/defn load-plugin :- EventPairInterface
   [this :- PluginManager
+   ;; Note that this is deliberately over-simplified
+   ;; Need to set up something like a PATH environment
+   ;; That we can both search and override (for the sake
+   ;; of things like python virtualenv)
    path :- [s/Symbol]]
   ;; This is really just a stepping stone. Apps have to go to a database
   ;; rather than having anything that resembles file system access
   ;; (even though, yes, eventually a database means a file)
   (if-let [processes-atom (:processes this)]
-    (if-let [app (get @processes-atom path)]
-      app
-      (let [path-names (map str path)
-            ;; Q: What's the equivalent for python's os.path_separator?
-            resource-path (clojure.string/join "/" path-names)
-            file-path (str resource-path ".edn")]
+    (if-let [app-key (get @processes-atom path)]
+      (if-let [app-path (process-map app-key)]
+        (let [path-names (map str app-path)
+              ;; Q: What's the equivalent for python's os.path_separator?
+              ;; A: Don't care. Since this is really going to be
+              ;; querying a database anyway, this approach is just
+              ;; an over-simplification that must go away. It's
+              ;; strictly for the sake of getting that rope thrown
+              ;; across the gorge.
+              resource-path (clojure.string/join "/" path-names)
+              file-path (str resource-path ".edn")])
         (if-let [url (io/resource resource-path)]
           ;; Note that we really need a callback for when the App exits
           (with-open [rdr (io/reader url)]
@@ -123,7 +138,8 @@
               ;; clojure in the first place, after all).
               (swap! (:processes this) assoc path result)
               result))
-          (throw (ex-info "Missing App" {:path resource-path})))))
+          (throw (ex-info "Missing App" {:path resource-path}))))
+      (throw (ex-info "Unknown App" {:path path})))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
 

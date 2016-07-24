@@ -1,3 +1,34 @@
+;;;; Note that this is a misnomer.
+;;;; And fundamentally wrong.
+
+;;;; According to 1 top google result:
+
+;;;; getty is the process that monitors a physical terminal connection
+;;;; When it detects one, it spawns another process (usually something
+;;;; like login or pppd) to do credentials-gathering.
+
+;;;; It compares the output received there w/ /etc/passwd and /etc/shadow
+
+;;;; If the login fails, getty tries again, to allow for fat-fingered
+;;;; passwords (up to a preset number of times [by default it's 3] before
+;;;; ending the connection)
+
+;;;; If login succeeds, it checks /etc/passwd to figure out how
+;;;; to set up the user's environment, displays the MOTD, processes
+;;;; /etc/profile, .bashrc and .bash_profile, and then spawns the shell
+
+;;;; That doesn't seem right. According to another source:
+;;;; 1. init spawns getty
+;;;; 2. getty collects user name and invokes login process
+;;;; 3. login prompts and checks password.
+;;;; 3a. On success, the "shell is started"
+;;;; 3b. On failure, init respawns getty
+;;;; 4. User runs session and eventually logout.
+;;;; 5. Shell exits and we return to step 1.
+;;;; This used to be conntrolled by /etc/inittab
+;;;; Odds are, this is the core of the big controversy over upstart et al
+;;;; Each getty is started by fork and then exec
+
 {:rendering-engine :google/incremental-dom
  :version [0 0 1]
  :state {:failed false}
@@ -13,34 +44,10 @@
  ;; Really need to be able to specify library dependencies
  ;; But this approach seems like a reasonable start.
  :render-code [(defn random-rejection []
+                 ;;; TODO: Return a random insult
+                 ;;; Or be professional. That should always be an option also.
                  "Your father was a hamster and your mother smelled of elder berries")
-               ;; on-render will get called once with the current world state
-               ;; as its param. It should return a list of function calls
-               ;; for the rendering engine to run.
-               ;; TODO: Need to specify what these calls actually do
-               ;; (it will eventually be a thin lispified wrapper over google's
-               ;; incremental-dom library)
-               ;; Note that this looks like a clojurescript function
-               ;; with access to functions from the rendering engine and
-               ;; the state, but...well, is it?
-               ;; Or is it actually a DSL to provide another layer of
-               ;; protection?
-               (defn on-render [_]
-                 `[(element-open :form)
-                   (element-void :input "user-id" {:id "user-id"
-                                                   :placeholder "Name"})
-                   (element-void :input "password" {:id "password"
-                                                    :placeholder "Password"})
-                   ;; Note that this really can't be a macro, since this part
-                   ;; absolutely must happen at runtime
-                   ~@(when (:failed state)
-                       `[(element-open :p)
-                         (text ~(random-rejection))
-                         (element-close :p)])
-                   (element-open :button "login-submit")
-                   (text "Submit")
-                   (element-close :button)
-                   (element-close :form)])
+
                (defn hash [password]
                  ;; FIXME: This absolutely must be run through a 1-way hash
                  ;; It seems like that process really should include a salt.
@@ -81,12 +88,49 @@
 
                  {;; If there's no :element key, add this event to the dispatcher
                   ;; in the onmessage() handler
-                  :login/succeeded (fn [event]
-                                     (let [success (:success event)]
-                                       (swap! state #(assoc % :failed (not success)))
-                                       (when success
-                                         ;; Just a wrapper around js/close
-                                         (close!))))}]
+                  :events :login/succeeded
+                  :handler (fn [event]
+                             (let [success (:success event)]
+                               (swap! state #(assoc % :failed (not success)))
+                               (when success
+                                 ;; Just a wrapper around js/close
+                                 ;; Except that
+                                 (close!))))}
+
+                 ;; on-render will get called once with the current world state
+                 ;; as its param. It should return a list of function calls
+                 ;; for the rendering engine to run.
+                 ;; TODO: Need to specify what these calls actually do
+                 ;; (it will eventually be a thin lispified wrapper over google's
+                 ;; incremental-dom library)
+                 ;; Note that this looks like a clojurescript function
+                 ;; with access to functions from the rendering engine and
+                 ;; the state, but...well, is it?
+                 ;; Or is it actually a DSL to provide another layer of
+                 ;; protection?
+                 {:events :on-render
+                  :handler (fn on-render [state]
+                             (let [previous-failure (:failed state)
+                                   response {:message {:type :render
+                                                       :body
+                                                       `[(element-open :form)
+                                                         (element-void :input "user-id" {:id "user-id"
+                                                                                         :placeholder "Name"})
+                                                         (element-void :input "password" {:id "password"
+                                                                                          :placeholder "Password"})
+                                                         ;; Note that this really can't be a macro, since this part
+                                                         ;; absolutely must happen at runtime
+                                                         ~@(when previous-failure
+                                                             `[(element-open :p)
+                                                               (text ~(random-rejection))
+                                                               (element-close :p)])
+                                                         (element-open :button "login-submit")
+                                                         (text "Submit")
+                                                         (element-close :button)
+                                                         (element-close :form)]}}]
+                               (if previous-failure
+                                 (assoc response :swap-state #(dissoc % :failed))
+                                 response)))}]
 
  ;;; "universe"-code that runs on the
  ;;; server.
@@ -100,8 +144,23 @@
                                            (do
                                              ;; Note that the ability to do this implies special
                                              ;; privileges
-                                             (fork! :shell)
-                                             {:success true})
+
+                                             ;; fork! really means create a duplicate of the current
+                                             ;; process. Note that it's fairly expensive, because it
+                                             ;; involves duplicating all existing program state.
+                                             ;; This includes open file descriptors, which allows
+                                             ;; opening pipes so the parent process can communicate
+                                             ;; with children
+                                             #_(fork! :shell)
+                                             ;; exec! means "replace the current process"
+                                             ;; Network daemons use it for updating in place while
+                                             ;; they're idle
+                                             #_(exec! :shell)
+                                             (let [child-pid (fork!)]
+                                               (if (not= 0 child-pid)
+                                                 (wait! child-pid)
+                                                 (exec! :shell))
+                                               nil))
                                            {:success false
                                             :explanation "C'mon...gimme somethin'!"})})
                    }
