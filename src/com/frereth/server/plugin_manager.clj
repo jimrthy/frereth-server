@@ -41,7 +41,7 @@
   First obvious one: more holes in your firewall."
   frereth-schema/atom-type)
 
-(declare load-plugin)
+(declare load-plugin!)
 (s/defrecord PluginManager [base-port :- s/Int
                             ctx :- ContextWrapper
                             done ; Should probably turn that promise into a record
@@ -51,7 +51,7 @@
     (let [this (assoc this :processes (atom {}))
           ;; TODO: This needs to be configurable
           process-key :login
-          getty-process (load-plugin this process-key)]
+          getty-process (load-plugin! this process-key)]
       this))
   (stop [this]
     (when processes
@@ -105,7 +105,25 @@
   (process-key {:login '[login]
                 :shell '[sh]}))
 
-(s/defn load-plugin :- EventPairInterface
+(s/defn load-app-source!
+  [path :- [s/Symbol]]
+  (if-let [app-path (process-map path)]
+    (let [path-names (map str app-path)
+          ;; Q: What's the equivalent for python's os.path_separator?
+          ;; A: Don't care. Since this is really going to be
+          ;; querying a database anyway, this approach is just
+          ;; an over-simplification that must go away. It's
+          ;; strictly for the sake of getting that rope thrown
+          ;; across the gorge.
+          resource-path (clojure.string/join "/" path-names)
+          file-path (str resource-path ".edn")]
+      (if-let [url (io/resource file-path)]
+        (with-open [rdr (java.io.PushbackReader. (io/reader url))]
+          (edn/read rdr))
+        (throw (ex-info "Missing installed App" {:path resource-path}))))
+    (throw (ex-info "App not found" {:path path}))))
+
+(s/defn load-plugin! :- EventPairInterface
   [this :- PluginManager
    ;; Note that this is deliberately over-simplified
    ;; Need to set up something like a PATH environment
@@ -118,30 +136,17 @@
   (if-let [processes-atom (:processes this)]
     (if-let [existing-app (get @processes-atom path)]
       existing-app   ; Q: What about processes that don't want to be multi-user? Since they're quite a bit simpler
-      (if-let [app-path (process-map path)]
-        (let [path-names (map str app-path)
-              ;; Q: What's the equivalent for python's os.path_separator?
-              ;; A: Don't care. Since this is really going to be
-              ;; querying a database anyway, this approach is just
-              ;; an over-simplification that must go away. It's
-              ;; strictly for the sake of getting that rope thrown
-              ;; across the gorge.
-              resource-path (clojure.string/join "/" path-names)
-              file-path (str resource-path ".edn")]
-          (if-let [url (io/resource file-path)]
+      (let [source-code (load-app-source! path)
+            ;; TODO: Refine and protect, based on these comments
             ;; Note that we really need a callback for when the browser side
             ;; of an App exits so the server side can decide what to do.
-            (with-open [rdr (java.io.PushbackReader. (io/reader url))]
-              (let [source-code (edn/read rdr)
-                    result (start-event-loop! source-code)]
-                ;; Note that this is really where sandboxes start to come
-                ;; into play. Maybe something like OSGi or even clojail
-                ;; (that's what convinced me to take a serious look it
-                ;; clojure in the first place, after all).
-                (swap! (:processes this) assoc path result)
-                result))
-            (throw (ex-info "Missing installed App" {:path resource-path}))))
-        (throw (ex-info "App not found" {:path path}))))
+            ;; Note also that this is really where sandboxes start to come
+            ;; into play. Maybe something like OSGi or even clojail
+            ;; (that's what convinced me to take a serious look at
+            ;; clojure in the first place, after all).
+            result (start-event-loop! source-code)]
+        (swap! (:processes this) assoc path result)
+        result))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
 

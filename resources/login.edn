@@ -91,7 +91,7 @@
                   :events :login/succeeded
                   :handler (fn [event]
                              (let [success (:success event)]
-                               (swap! state #(assoc % :failed (not success)))
+                               (swap! state (fn [x] (assoc x :failed (not success))))
                                (when success
                                  ;; Just a wrapper around js/close
                                  ;; Except that
@@ -111,25 +111,25 @@
                  {:events :on-render
                   :handler (fn on-render [state]
                              (let [previous-failure (:failed state)
+                                   body (syntax-quote [(element-open :form)
+                                                       (element-void :input "user-id" {:id "user-id"
+                                                                                       :placeholder "Name"})
+                                                       (element-void :input "password" {:id "password"
+                                                                                        :placeholder "Password"})
+                                                       ;; Note that this can't be a macro, since this part
+                                                       ;; absolutely must happen at runtime
+                                                       (unquote-splicing (when previous-failure
+                                                                           (syntax-quote [(element-open :p)
+                                                                                          (text (unquote (random-rejection)))
+                                                                                          (element-close :p)])))
+                                                       (element-open :button "login-submit")
+                                                       (text "Submit")
+                                                       (element-close :button)
+                                                       (element-close :form)])
                                    response {:message {:type :render
-                                                       :body
-                                                       `[(element-open :form)
-                                                         (element-void :input "user-id" {:id "user-id"
-                                                                                         :placeholder "Name"})
-                                                         (element-void :input "password" {:id "password"
-                                                                                          :placeholder "Password"})
-                                                         ;; Note that this really can't be a macro, since this part
-                                                         ;; absolutely must happen at runtime
-                                                         ~@(when previous-failure
-                                                             `[(element-open :p)
-                                                               (text ~(random-rejection))
-                                                               (element-close :p)])
-                                                         (element-open :button "login-submit")
-                                                         (text "Submit")
-                                                         (element-close :button)
-                                                         (element-close :form)]}}]
+                                                       :body body}}]
                                (if previous-failure
-                                 (assoc response :swap-state #(dissoc % :failed))
+                                 (assoc response :swap-state (fn [x] (dissoc x :failed)))
                                  response)))}]
 
  ;;; "universe"-code that runs on the
