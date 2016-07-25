@@ -144,7 +144,7 @@
             ;; into play. Maybe something like OSGi or even clojail
             ;; (that's what convinced me to take a serious look at
             ;; clojure in the first place, after all).
-            result (start-event-loop! source-code)]
+            result (start-event-loop! this source-code)]
         (swap! (:processes this) assoc path result)
         result))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
