@@ -111,6 +111,9 @@
                  {:events :on-render
                   :handler (fn on-render [state]
                              (let [previous-failure (:failed state)
+                                   ;; Note that clojure does not provide direct access to syntax-quote.
+                                   ;; This seems like a dilemma.
+                                   ;; Most likely solution: Brandon Bloom's backtick library
                                    body (syntax-quote [(element-open :form)
                                                        (element-void :input "user-id" {:id "user-id"
                                                                                        :placeholder "Name"})
