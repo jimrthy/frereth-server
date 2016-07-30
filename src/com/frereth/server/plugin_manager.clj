@@ -4,7 +4,8 @@
   For starters, everything's going to be an App. I'll almost definitely
   want to add Daemons (that's really what getty is, right?), but start
   with this approach"
-  (:require [clojure.core.async :as async]
+  (:require [cljeromq.core :as mq]
+            [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [com.frereth.common.async-zmq :as async-zmq]
@@ -79,26 +80,35 @@
 (s/defn start-event-loop! :- EventPairInterface
   [this :- PluginManager
    source :- SourceCode]
-  (let [ex-sock nil  ;; TODO: Need to create/bind this to a random(?) port
+  (let [ctx (:ctx this)
         ;; This shouldn't be created here.
+        ;; We need to set it up as a server socket, complete with encryption key.
+        ;; Q: Is it more appropriate to have one key per app, or to just have
+        ;; 1 shared across the entire server?
+        ;; (Obviously need multiple keys if we're serving multiple apps from different
+        ;; sources, but that's a different thing...isn't it?)
+        ex-sock (mq/socket! ctx :router)
+        ;; Probably *is* appropriate to bind like this here
+        port (mq/bind-random-port! ex-sock "tcp://*")
         ;; We use it to send messages to the Client over 0mq.
         ;; It really seems like it should be supplied here as a
         ;; parameter, but where would it make more sense?
         in-chan (async/chan)
+        ;; Q: What happens on incoming data?
         external-reader nil
+        ;; Q: What do we do on data heading out?
         external-writer nil
         -name (:name source)]
     ;; Just initialized pretty much everything to nil as a place-holder
     ;; to get the basic app shape slapped together
-    (throw (ex-info "FIXME: Need meaningful values" {}))
-    ;; Q: What did I really intend to happen here?
-    ;; Maybe async-zmq/ctor-interface?
-    ;; Except that it would still need to be started
-    (async-zmq/event-system {:ex-sock ex-sock
-                             :in-chan in-chan
-                             :external-reader external-reader
-                             :external-writer external-writer
-                             :_name -name})))
+    (throw (ex-info "FIXME: Implement reader/writer" {}))
+    (assoc
+     (async-zmq/event-system {:ex-sock ex-sock
+                              :in-chan in-chan
+                              :external-reader external-reader
+                              :external-writer external-writer
+                              :_name -name})
+     :port port)))
 
 (defn process-map
   [process-key]
