@@ -36,6 +36,7 @@ be set by environment variables instead"
      ;; sure whether I buy that that would be an issue.
      ;; Whichever approach makes the most sense, we have to have at least 1.
      :context {:thread-count (-> (util/core-count) dec (max 1))}
+     :event-interface {}
      :socket-description (-> default-sock
                              (assoc-in [:url :port] 7843)
                              (assoc :server-key (curve/z85-decode "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:")))}))
@@ -50,16 +51,16 @@ be set by environment variables instead"
   ;; own processes?
   '{:context com.frereth.common.zmq-socket/ctx-ctor
     :done component-dsl.done-manager/ctor
-    :event-interface com.frereth.server.auth-socket/ctor-interface
+    :event-interface com.frereth.common.async-zmq/ctor-interface
+    :event-pair com.frereth.common.async-zmq/ctor
     :logger com.frereth.server.logging/ctor
-    :message-dispatcher com.frereth.server.message-dispatcher/ctor
     :plugin-manager com.frereth.server.plugin-manager/ctor
     :socket-description com.frereth.server.zmq-socket/ctor
     })
 
 (defn dependencies []
-  {:event-interface [:socket-description]
-   :message-dispatcher [:event-interface :plugin-manager]
+  {:event-pair {:interface :event-interface}
+   :event-interface {:ex-sock :socket-description}
    :plugin-manager [:done]
    :socket-description [:context]})
 
