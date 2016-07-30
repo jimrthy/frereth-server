@@ -152,12 +152,12 @@ Otherwise, why would you bother?"
 ;;; Internal
 
 (s/defn incoming-event-handler :- frereth-schema/java-byte-array
-  [mq-cmn/Socket]
+  [sock :- mq-cmn/Socket]
   (throw (ex-info "What should this do?" {})))
 
 (s/defn outgoing-event-writer
   [sock :- mq-cmn/Socket
-   packet :- schema/java-byte-array]
+   packet :- frereth-schema/java-byte-array]
   (throw (ex-info "When does this really get called?" {})))
 
 (s/defn start-event-loop! :- EventPairInterface
@@ -170,13 +170,18 @@ Otherwise, why would you bother?"
         ;; Q: What happens on incoming data?
         external-reader incoming-event-handler
         ;; Q: What do we do on data heading out?
-        external-writer outgoing-event-writer
-        -name (:name source)]
+        external-writer outgoing-event-writer]
     (async-zmq/event-system {:ex-sock (:socket-description this)
                              :in-chan in-chan
-                             :external-reader external-reader
-                             :external-writer external-writer
-                             :_name -name})))
+                             ;; In the async-zmq Component, I have comments
+                             ;; that the incoming messages really need to
+                             ;; be demarshalled and pre-processed by these
+                             ;; in order for anything useful to happen.
+                             ;; Q: When would that really be appropriate?
+                             ;; (I don't think I need it here)
+                             :external-reader (comment external-reader)
+                             :external-writer (comment external-writer)
+                             :_name "frereth.io"})))
 
 (defn process-map
   [process-key]
@@ -204,11 +209,22 @@ Otherwise, why would you bother?"
 
 (s/defn register-active-plugin!
   [this :- PluginManager
+   path :- [s/Symbol]
    source-code :- SourceCode]
   ;; This really needs to set things up so the external-reader/writer
   ;; in the EventPairInterface know how to properly route messages.
+  ;; Or something along those lines.
+  ;; They don't do the routing.
+  ;; Part of my problem is that I've been looking at EventPairInterface
+  ;; rather than EventPair (which owns the interface. This is really
+  ;; a naming problem).
+  ;; We read messages from its ex-chan and write them to its
+  ;; interface's in-chan.
+  ;; TODO: Revisit that fundamental API
   (throw (ex-info "Overly simplistic" {}))
-  (swap! (:processes this) assoc path result))
+  ;; This approach neither works nor makes sense. I'm just trying
+  ;; to get a build-breaking checkin passing
+  (swap! (:processes this) assoc path source-code))
 
 (s/defn load-plugin!
   [this :- PluginManager
@@ -231,7 +247,7 @@ Otherwise, why would you bother?"
         ;; into play. Maybe something like OSGi or even clojail
         ;; (that's what convinced me to take a serious look at
         ;; clojure in the first place, after all).
-        (register-active-plugin! this source-code)))
+        (register-active-plugin! this path source-code)))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
 
