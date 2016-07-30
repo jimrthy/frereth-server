@@ -29,9 +29,16 @@
 ;;;; Odds are, this is the core of the big controversy over upstart et al
 ;;;; Each getty is started by fork and then exec
 
-{:rendering-engine :google/incremental-dom
- :version [0 0 1]
- :state {:failed false}
+{:app/description "This is really a Password Vault"
+ :app/keys {:private "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:"
+            :public ""}
+ :app/name "Login"  ; Password Keeper is catchier. Surely it's already taken
+ :app/state {:failed false}
+ ;; EDN doesn't have access to this by default, does it?
+ :app/uuid #uuid "61d15670-dd4a-42cb-a63d-a90e3c1a90b8"
+ :app/version [0 0 1]
+ :frereth/version [0 0 1]
+
  ;;; TODO: Still need a way to specify which database resources
  ;;; are involved...though they don't belong in this
  ;;; script. They're really part of the App
@@ -40,63 +47,93 @@
  ;;; For that matter...surely some of this makes sense at the "client" level...doesn't it?
  ;;; (well, maybe not for something this simple. But more generally)
 
+ :render/engine :google/incremental-dom
+
  ;; This is the code that actually runs in the browser's Web Worker.
  ;; Really need to be able to specify library dependencies
  ;; But this approach seems like a reasonable start.
- :render-code [(defn random-rejection []
+ :render/code [(defn random-rejection []
                  ;;; TODO: Return a random insult
                  ;;; Or be professional. That should always be an option also.
                  "Your father was a hamster and your mother smelled of elder berries")
 
                (defn hash [password]
-                 ;; FIXME: This absolutely must be run through a 1-way hash
-                 ;; It seems like that process really should include a salt.
-                 ;; Or is best practice to just send the password to the server
-                 ;; to do the hashing and trust in TLS?
+                 ;; It seems like this really should be run through a 1-way hash
+                 ;; before getting onto the wire.
+                 ;; But it has to be stored as a hash (with a salt) on the server.
+                 ;; So we'd have to send the salt, which can't happen until we've
+                 ;; looked it up by user ID...which would tell attackers that
+                 ;; the user ID exists.
+                 ;; And still leaves us in the "If you capture 1 successful
+                 ;; credentials exchange, you have access to that account"
+                 ;; boat.
+                 ;; So maybe we could also add a nonce to the mix. Do something
+                 ;; like hash the password + nonce, then hash that hash with the
+                 ;; salt...that still isn't any more secure, and you'd have to
+                 ;; store the plain-text password on the server so you could
+                 ;; mix the nonce correctly.
+                 ;; Actually, hashing the salt/password and then adding the
+                 ;; nonce seems like it might be beneficial.
+                 ;; TODO: Look up security best-practices around this
+                 ;; In the meantime, do like everyone else and just trust TLS
+
+                 ;; The main concern I have here is really solved by D-H Key
+                 ;; Exchange. We've already been through some variant of
+                 ;; that (TODO: write ZAP handler for this and just use that
+                 ;; instead)
+
+                 ;; Note that this is really a chicken/egg problem. The
+                 ;; user's trying to get access to the password/key vault in
+                 ;; order to be able to log into other remote apps.
+                 ;; Along with a list of their available Apps.
+
+                 ;; Should really be thinking along those lines instead. But
+                 ;; get the absolute smallest possible thing that could work
+                 ;; working first.
                  password)]
- :render-dependencies [[google/incremental-dom :as dom]]
+ :render/dependencies [[google/incremental-dom :as dom]]
  ;; Put the browser-level event handlers here
  ;; Note that we still need proxies to connect
  ;; to the "real" virtual DOM to keep these
  ;; isolated in their Web Worker
- :render-events [{:element "login-submit"
-                  :events :click
+ :render/events [{:event/element "login-submit"
+                  :event/events :click
                   ;; The values stored in these DOM elements will be extracted
                   ;; and passed to the handler when the event happens
-                  :dependencies ["user-id" "password"]
+                  :event/dependencies ["user-id" "password"]
                   ;; Although, really, it should just be receiving a) the "full" world
                   ;; state...which happens to be the DOM and b) the event.
                   ;; This needs/deserves more thought
-                  :handler (fn [{:keys [user-id password]}]
-                             ;; This is really a break from the Functional I/O
-                             ;; paper. There's a question about how big a break,
-                             ;; and how much less understandable this version
-                             ;; might be.
-                             ;; Go with this approach for now if only because it
-                             ;; seems more obvious at the moment.
-                             ;; Get it working first, then worry about getting it
-                             ;; to work well.
-                             ;; Rather than causing side-effects internally
-                             ;; (which *is* legal inside a Web Worker and
-                             ;; could happen anyway), event handlers should
-                             ;; return the message they want to post
-                             ;; Actually, this pattern seems so common and
-                             ;; obvious that I doubtlessly want a wrapper to
-                             ;; just specify it
-                             {:message :login/credentials
-                              :params {:user-id user-id
-                                       :password (hash password)}})}
+                  :event/handler (fn [{:keys [user-id password]}]
+                                   ;; This is really a break from the Functional I/O
+                                   ;; paper. There's a question about how big a break,
+                                   ;; and how much less understandable this version
+                                   ;; might be.
+                                   ;; Go with this approach for now if only because it
+                                   ;; seems more obvious at the moment.
+                                   ;; Get it working first, then worry about getting it
+                                   ;; to work well.
+                                   ;; Rather than causing side-effects internally
+                                   ;; (which *is* legal inside a Web Worker and
+                                   ;; could happen anyway), event handlers should
+                                   ;; return the message they want to post
+                                   ;; Actually, this pattern seems so common and
+                                   ;; obvious that I doubtlessly want a wrapper to
+                                   ;; just specify it
+                                   {:message :login/credentials
+                                    :params {:user-id user-id
+                                             :password (hash password)}})}
 
                  {;; If there's no :element key, add this event to the dispatcher
                   ;; in the onmessage() handler
-                  :events :login/succeeded
-                  :handler (fn [event]
-                             (let [success (:success event)]
-                               (swap! state (fn [x] (assoc x :failed (not success))))
-                               (when success
-                                 ;; Just a wrapper around js/close
-                                 ;; Except that
-                                 (close!))))}
+                  :event/events :login/succeeded
+                  :event/handler (fn [event]
+                                   (let [success (:success event)]
+                                     (swap! state (fn [x] (assoc x :failed (not success))))
+                                     (when success
+                                       ;; Just a wrapper around js/close
+                                       ;; Except that
+                                       (close!))))}
 
                  ;; on-render will get called once with the current world state
                  ;; as its param. It should return a list of function calls
@@ -109,37 +146,34 @@
                  ;; the state, but...well, is it?
                  ;; Or is it actually a DSL to provide another layer of
                  ;; protection?
-                 {:events :on-render
-                  :handler (fn on-render [state]
-                             (let [previous-failure (:failed state)
-                                   ;; Note that clojure does not provide direct access to syntax-quote.
-                                   ;; This seems like a dilemma.
-                                   ;; Most likely solution: Brandon Bloom's backtick library
-                                   body (syntax-quote [(dom/element-open :form)
-                                                       (dom/element-void :input "user-id" {:id "user-id"
-                                                                                           :placeholder "Name"})
-                                                       (dom/element-void :input "password" {:id "password"
-                                                                                            :placeholder "Password"})
-                                                       ;; Note that this can't be a macro, since this part
-                                                       ;; absolutely must happen at runtime
-                                                       (unquote-splicing (when previous-failure
-                                                                           (syntax-quote [(dom/element-open :p)
-                                                                                          (dom/text (unquote (random-rejection)))
-                                                                                          (dom/element-close :p)])))
-                                                       (dom/element-open :button "login-submit")
-                                                       (dom/text "Submit")
-                                                       (dom/element-close :button)
-                                                       (dom/element-close :form)])
-                                   response {:message {:type :render
-                                                       :body body}}]
-                               (if previous-failure
-                                 (assoc response :swap-state (fn [x] (dissoc x :failed)))
-                                 response)))}]
+                 {:event/events :on-render
+                  :event/handler (fn on-render [state]
+                                   (let [previous-failure (:failed state)
+                                         body [[:dom/element-open :form]
+                                               [:dom/element-void :input "user-id" {:id "user-id"
+                                                                                    :placeholder "Name"}]
+                                               [:dom/element-void :input "password" {:id "password"
+                                                                                     :placeholder "Password"}]]
+                                         failure-reset [[:dom/element-open :p]
+                                                        [:dom/text (random-rejection)]
+                                                        [:dom/element-close :p]]
+                                         submission [[:dom/element-open :button "login-submit"]
+                                                     [:dom/text "Submit"]
+                                                     [:dom/element-close :button]
+                                                     [:dom/element-close :form]]
+                                         response {:message {:type :render
+                                                             :body (concat body
+                                                                           (when previous-failure
+                                                                             failure-reset)
+                                                                           submission)}}]
+                                     (if previous-failure
+                                       (assoc response :swap-state (fn [x] (dissoc x :failed)))
+                                       response)))}]
 
  ;;; "universe"-code that runs on the
  ;;; server.
- ;;; Client events map to the event handlers specified here
- :universe-events {:login/credentials (fn [{:keys [user password]}]
+ ;;; Client/renderer events get dispatched to the event handlers specified here
+ :universe/events {:login/credentials (fn [{:keys [user password]}]
                                         ;; For now, just keep this dead simple:
                                         ;; any credentials get access
                                         {:login/suceeded

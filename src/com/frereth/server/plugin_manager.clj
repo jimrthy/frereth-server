@@ -61,6 +61,34 @@
       (reset! processes {}))
     this))
 
+(def base-event {:event/handler [s/Any]  ;; Really a fn definition
+                 :event/events frereth-schema/korks})
+
+(def dom-event
+  ;; Q: Limit :event/events to standard legal DOM events?
+  (into base-event {:event/element s/Str ; what triggered this event?
+                    ;; Which elements of the tree of the DOM that we created
+                    ;; should this event handler know about?
+                    (s/Maybe :event/dependencies) [s/Str]}))
+
+(def internal-event (into base-event {}))
+
+(def render-event (s/either dom-event internal-event))
+
+(def rendering-engines
+  "Most interesting Apps will involve multiple rendering engines.
+
+Otherwise, why would you bother?"
+  (s/Either
+   rendering-engine-types
+   {s/Keyword rendering-engine-types}))
+
+(def sem-ver
+  "This is where I really need to switch to Spec.
+
+Since, really, this is a Sequential of three ints"
+  [s/Int])
+
 (def SourceCode
   "This should really be defined in frereth-app instead
 
@@ -68,11 +96,47 @@
   ready for that just yet.
 
   And I have to start somewhere"
-  {:guid UUID
-   :name s/Str
-   ;; Seems like this really should be something structured. But I'm still
-   ;; trying to get the rope thrown across the gorge.
-   :static-html s/Str})
+  ;; TODO: All these keys need to be namespaced
+  {
+   :app/description s/Str  ; human-readable
+   ;; These are really the Z85-encoded versions.
+   ;; Don't need the server's public key here.
+   :app/keys {:private s/Str
+              :public s/Str}
+   :app/name s/Str
+   ;; This is really the initial state
+   :app/state {:s/Any s/Any}
+   :app/uuid UUID
+   :app/version sem-ver
+
+   ;; What version of frereth was this written to run against?
+   ;; Note that, by definition, only the major/minor versions matter
+   ;; here. Since breaking changes require incrementing those.
+   ;; The downside to that approach is that, really, bug fixes are
+   ;; breaking changes.
+   :frereth/version sem-ver
+
+   ;; More-or-less arbitrary code to be run inside the App's sandbox on
+   ;; the renderer.
+   ;; This should be defining helper functions to assist the render-side
+   ;; events.
+   ;; This is really the dangerous part
+   ;; The spec here should really just be a sequence of defn forms.
+   ;; Although a map a function name symbols to a defn's parameters/body
+   ;; sequence is also very tempting.
+   :render/code [[s/Any]]
+   ;; Dependencies that will be require'd on the renderer side
+   ;; This is also pretty dangerous, of course
+   :render/dependencies
+   ;; What does the drawing?
+   ;; Note that composites are very likely.
+   ;; Maybe we have react.js for the HTML parts, D3 for 2d data visualization,
+   ;; and ThreeD for drawing the "fun" stuff
+   :render/engine rendering-engines
+   :render/events [render-event]
+
+   ;; Map of event keys to handler definitions
+   :universe/events {s/Keyword [s/Any]}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -81,6 +145,7 @@
   [this :- PluginManager
    source :- SourceCode]
   (let [ctx (:ctx this)
+
         ;; This shouldn't be created here.
         ;; We need to set it up as a server socket, complete with encryption key.
         ;; Q: Is it more appropriate to have one key per app, or to just have
