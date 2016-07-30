@@ -1,6 +1,7 @@
 pom.xml
 *jar
 /lib/
+/logs/
 /classes/
 /checkouts
 /target

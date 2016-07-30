@@ -52,8 +52,9 @@
                  ;; FIXME: This absolutely must be run through a 1-way hash
                  ;; It seems like that process really should include a salt.
                  ;; Or is best practice to just send the password to the server
-                 ;; and trust in TLS?
+                 ;; to do the hashing and trust in TLS?
                  password)]
+ :render-dependencies [[google/incremental-dom :as dom]]
  ;; Put the browser-level event handlers here
  ;; Note that we still need proxies to connect
  ;; to the "real" virtual DOM to keep these
@@ -114,21 +115,21 @@
                                    ;; Note that clojure does not provide direct access to syntax-quote.
                                    ;; This seems like a dilemma.
                                    ;; Most likely solution: Brandon Bloom's backtick library
-                                   body (syntax-quote [(element-open :form)
-                                                       (element-void :input "user-id" {:id "user-id"
-                                                                                       :placeholder "Name"})
-                                                       (element-void :input "password" {:id "password"
-                                                                                        :placeholder "Password"})
+                                   body (syntax-quote [(dom/element-open :form)
+                                                       (dom/element-void :input "user-id" {:id "user-id"
+                                                                                           :placeholder "Name"})
+                                                       (dom/element-void :input "password" {:id "password"
+                                                                                            :placeholder "Password"})
                                                        ;; Note that this can't be a macro, since this part
                                                        ;; absolutely must happen at runtime
                                                        (unquote-splicing (when previous-failure
-                                                                           (syntax-quote [(element-open :p)
-                                                                                          (text (unquote (random-rejection)))
-                                                                                          (element-close :p)])))
-                                                       (element-open :button "login-submit")
-                                                       (text "Submit")
-                                                       (element-close :button)
-                                                       (element-close :form)])
+                                                                           (syntax-quote [(dom/element-open :p)
+                                                                                          (dom/text (unquote (random-rejection)))
+                                                                                          (dom/element-close :p)])))
+                                                       (dom/element-open :button "login-submit")
+                                                       (dom/text "Submit")
+                                                       (dom/element-close :button)
+                                                       (dom/element-close :form)])
                                    response {:message {:type :render
                                                        :body body}}]
                                (if previous-failure
