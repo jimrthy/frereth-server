@@ -39,7 +39,15 @@ be set by environment variables instead"
      ;; sure whether I buy that that would be an issue.
      ;; Whichever approach makes the most sense, we have to have at least 1.
      :context {:thread-count (-> (util/core-count) dec (max 1))}
-     :plugin-manager {:base-port 7843}}))
+     :socket-description {:direction :bind
+                          ;; TODO: Don't hard-code this!
+                          ;; And, obviously, don't publish a key that will ever
+                          ;; matter to anyone in any way, shape, or form
+                          :server-key "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:"
+                          :sock-type :router
+                          :url {:protocal :tcp
+                                :address "*"
+                                :port 7843}}}))
 
 (defn structure []
   ;; Note that this is overly simplified.
@@ -52,11 +60,15 @@ be set by environment variables instead"
   '{:context com.frereth.common.zmq-socket/ctx-ctor
     :done component-dsl.done-manager/ctor
     :logger com.frereth.server.logging/ctor
-    :plugin-manager com.frereth.server.plugin-manager/ctor})
+    :plugin-manager com.frereth.server.plugin-manager/ctor
+    :socket-description com.frereth.server.zmq-socket/ctor
+    })
 
 (defn dependencies []
-  {:plugin-manager {:ctx :context
-                    :done :done}})
+  {:plugin-manager {
+                    :done :done
+                    :socket-description :socket-description}
+   :socket-description :context})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

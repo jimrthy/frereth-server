@@ -30,14 +30,12 @@
 ;;;; Each getty is started by fork and then exec
 
 {:app/description "This is really a Password Vault"
- :app/keys {:private "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:"
-            :public ""}
  :app/name "Login"  ; Password Keeper is catchier. Surely it's already taken
  :app/state {:failed false}
  ;; EDN doesn't have access to this by default, does it?
  :app/uuid #uuid "61d15670-dd4a-42cb-a63d-a90e3c1a90b8"
- :app/version [0 0 1]
- :frereth/version [0 0 1]
+ :app/version {:major 0 :minor 0 :build 1}
+ :frereth/version {:major 0 :minor 1 :build "0-SNAPSHOT"}
 
  ;;; TODO: Still need a way to specify which database resources
  ;;; are involved...though they don't belong in this
