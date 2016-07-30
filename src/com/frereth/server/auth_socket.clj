@@ -1,5 +1,7 @@
 (ns com.frereth.server.auth-socket
-  "Messaging pieces for handling the authentication socket.
+  "Misnamed. This is currently my entire event loop
+
+Original intent: Messaging pieces for handling the authentication socket.
 
 This is really my original prototype code, trying to set up a
 handshake with a client.
