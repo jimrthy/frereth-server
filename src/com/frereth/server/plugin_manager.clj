@@ -43,22 +43,18 @@
   First obvious one: more holes in your firewall."
   frereth-schema/atom-type)
 
-(declare load-plugin! start-event-loop!)
+(declare load-plugin!)
 (s/defrecord PluginManager [base-port :- s/Int
                             ;; Q: Do we really need access to done?
                             done ; Should probably turn that promise into a record
-                            ;; Note that this is upside-down. event-loop is really
-                            ;; just a separate Component that depends on the PluginManager
-                            event-loop :- EventPairInterface
                             processes :- ProcessMap
                             socket-description :- SocketDescription]
   cpt/Lifecycle
   (start [this]
     (let [this (assoc this
-                      :processes (atom {})
-                      :event-loop (start-event-loop! this))
+                      :processes (atom {}))
           ;; TODO: This needs to be configurable
-          process-key :login
+          process-key [:login]
           getty-process (load-plugin! this process-key)]
       this))
   (stop [this]
@@ -115,7 +111,7 @@ Otherwise, why would you bother?"
    :app/description s/Str  ; human-readable
    :app/name s/Str
    ;; This is really the initial state
-   :app/state {:s/Any s/Any}
+   :app/state {s/Any s/Any}
    :app/uuid UUID
    :app/version sem-ver
 
@@ -162,11 +158,12 @@ Otherwise, why would you bother?"
 
 (defn process-map
   [process-key]
-  (process-key {:login '[login]
-                :shell '[sh]}))
+  (get {[:login] '[login]
+        [:shell] '[sh]}
+       process-key))
 
 (s/defn ^:always-validate load-app-source! :- SourceCode
-  [path :- [s/Symbol]]
+  [path :- [(s/either s/Symbol s/Keyword)]]
   (if-let [app-path (process-map path)]
     (let [path-names (map str app-path)
           ;; Q: What's the equivalent for python's os.path_separator?
