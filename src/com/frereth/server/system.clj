@@ -16,30 +16,26 @@
 ;;; Internal
 
 (defn defaults
-  "Mostly pulled out of thin air
-
-TODO: Pretty much every one of these should
+  "TODO: Pretty much every one of these should
 be set by environment variables instead"
   []
-  (let [default-sock {:url {:port :override-this
-                            ;; Must use numeric IP address
-                            :address "127.0.0.1"
-                            :protocol :tcp}
-                      :direction :bind
-                      :sock-type :router}]
-    {;; Almost definitely want to maximize this thread count
-     ;; Although that really depends on the environment.
-     ;; It makes sense for a production server.
-     ;; For a local one...probably not so much.
-     ;; Q: Why not?
-     ;; A: Well, context switches come to mind. I'm not
-     ;; sure whether I buy that that would be an issue.
-     ;; Whichever approach makes the most sense, we have to have at least 1.
-     :context {:thread-count (-> (util/core-count) dec (max 1))}
-     :event-interface {}
-     :socket-description (-> default-sock
-                             (assoc-in [:url :port] 7843)
-                             (assoc :server-key (curve/z85-decode "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:")))}))
+  {;; Almost definitely want to maximize this thread count
+   ;; Although that really depends on the environment.
+   ;; It makes sense for a production server.
+   ;; For a local one...probably not so much.
+   ;; Q: Why not?
+   ;; A: Well, context switches come to mind. I'm not
+   ;; sure whether I buy that that would be an issue.
+   ;; Whichever approach makes the most sense, we have to have at least 1.
+   :event-loop {:ctx-thread-count (-> (util/core-count) dec (max 1))
+                :direction :bind
+                :event-loop-name "frereth.server/io"
+                :server-key (curve/z85-decode "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:")
+                :socket-type :router
+                :url {:port 7848
+                      ;; Must use numeric IP address
+                      :address [127 0 0 1]
+                      :protocol :tcp}}})
 
 (defn structure []
   ;; Note that this is overly simplified.
@@ -49,20 +45,14 @@ be set by environment variables instead"
   ;; it seems to make sense as a starting point.
   ;; Q: Would it make life simpler if I split these all into their
   ;; own processes?
-  '{:context com.frereth.common.zmq-socket/ctx-ctor
-    :done component-dsl.done-manager/ctor
-    :event-interface com.frereth.common.async-zmq/ctor-interface
-    :event-pair com.frereth.common.async-zmq/ctor
+  '{:done component-dsl.done-manager/ctor
+    :event-loop com.frereth.common.system/build-event-loop
     :logger com.frereth.server.logging/ctor
-    :plugin-manager com.frereth.server.plugin-manager/ctor
-    :socket-description com.frereth.server.zmq-socket/ctor
-    })
+    :plugin-manager com.frereth.server.plugin-manager/ctor})
 
 (defn dependencies []
-  {:event-pair {:interface :event-interface}
-   :event-interface {:ex-sock :socket-description}
-   :plugin-manager [:done]
-   :socket-description [:context]})
+  {:plugin-manager [:done
+                    :event-loop]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

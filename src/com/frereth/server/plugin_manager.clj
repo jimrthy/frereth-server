@@ -160,29 +160,6 @@ Otherwise, why would you bother?"
    packet :- frereth-schema/java-byte-array]
   (throw (ex-info "When does this really get called?" {})))
 
-(s/defn start-event-loop! :- EventPairInterface
-  [this :- PluginManager]
-  (throw (ex-info "Needs to be its own component instead" {}))
-  (let [;; We use it to send messages to the Client over 0mq.
-        ;; It really seems like it should be supplied here as a
-        ;; parameter, but where would it make more sense to own it?
-        in-chan (async/chan)
-        ;; Q: What happens on incoming data?
-        external-reader incoming-event-handler
-        ;; Q: What do we do on data heading out?
-        external-writer outgoing-event-writer]
-    (async-zmq/event-system {:ex-sock (:socket-description this)
-                             :in-chan in-chan
-                             ;; In the async-zmq Component, I have comments
-                             ;; that the incoming messages really need to
-                             ;; be demarshalled and pre-processed by these
-                             ;; in order for anything useful to happen.
-                             ;; Q: When would that really be appropriate?
-                             ;; (I don't think I need it here)
-                             :external-reader (comment external-reader)
-                             :external-writer (comment external-writer)
-                             :_name "frereth.io"})))
-
 (defn process-map
   [process-key]
   (process-key {:login '[login]
