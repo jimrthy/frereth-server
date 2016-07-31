@@ -1,4 +1,9 @@
 (ns com.frereth.server.comms.registrar
+  "I think this was/is the predecessor to the plugin-manager.
+
+  TODO: Need to reconcile the differences/similarities.
+
+  Mostly, this should either go away or be converted to use the functionality from there."
   (:require [clojure.core.async :as async]
             ;; Q: How do I combine these?
             [com.frereth.common.async-zmq]  ; just for the imports

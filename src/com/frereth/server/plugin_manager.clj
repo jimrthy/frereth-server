@@ -11,9 +11,12 @@
             [clojure.java.io :as io]
             [com.frereth.common.async-zmq :as async-zmq]
             [com.frereth.common.schema :as frereth-schema]
+            [com.frereth.common.system :as cmn-sys]
+            [com.frereth.common.util :as util]
             [component-dsl.done-manager :as sentinal]
             [com.stuartsierra.component :as cpt]
-            [schema.core :as s])
+            [schema.core :as s]
+            [taoensso.timbre :as log])
   (:import [com.frereth.common.async_zmq EventPairInterface]
            [com.frereth.common.zmq_socket SocketDescription]
            [java.util UUID]))
@@ -21,8 +24,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema/specs
 
+;;; This is a prime reason for moving all that schema elsewhere.
+;;; Like to the App library where it belongs.
+(declare SourceCode)
+(def AppDescription
+  "Q: What else do we need in here?"
+  {:output-channel frereth-schema/async-channel
+   :source-code SourceCode})
+
 (def ProcessMap
-  "Really a  (atom {UUID EventPairInterface})
+  "Really a  (atom {App-UUID AppDescription})
+  TODO: Need to define AppDescription
 
   Note that this is really a fairly drastic departure from my initial
   plans (or, at least, it looks that way as I'm trying to remember where
@@ -43,10 +55,14 @@
   First obvious one: more holes in your firewall."
   frereth-schema/atom-type)
 
-(declare load-plugin!)
-(s/defrecord PluginManager [base-port :- s/Int
+(declare load-plugin! start-dispatcher!)
+(s/defrecord PluginManager [dispatcher :- frereth-schema/async-channel
                             ;; Q: Do we really need access to done?
-                            done ; Should probably turn that promise into a record
+                            ;; A: Well, sort of. We really need an
+                            ;; async channel to let us know when to stop
+                            ;; the dispatcher loop
+                            done
+                            event-loop ; this is really a SystemMap
                             processes :- ProcessMap
                             socket-description :- SocketDescription]
   cpt/Lifecycle
@@ -56,7 +72,7 @@
           ;; TODO: This needs to be configurable
           process-key [:login]
           getty-process (load-plugin! this process-key)]
-      this))
+      (assoc this :dispatcher (start-dispatcher! this))))
   (stop [this]
     (when processes
       (doseq [p (vals @processes)]
@@ -224,6 +240,63 @@ Otherwise, why would you bother?"
         (register-active-plugin! this path source-code)))
     (throw (ex-info "Trying to load a plugin with an unstarted PluginManager" (assoc this
                                                                                      :requested path)))))
+
+(s/defn dispatch-incoming-message!
+  "World Client is sending a message to its Universe App"
+  [this :- PluginManager
+   ;; Pretty sure I need this for the remaining frames
+   ;; (the top frame should really be the address)y
+   client-channel :- frereth-schema/async-channel
+   msg]
+
+  (log/debug "Received message" msg "from a client")
+  (throw (ex-info "Not Implemented" {})))
+
+(s/defn pick-app-by-channel :- AppDescription
+  [this :- PluginManager
+   app-channel :- frereth-schema/async-channel]
+  (let [processes (-> this :processes deref vals)
+        results (filter #(= app-channel (:output-channel %)) processes)]
+    (assert (= 1 (count results)))
+    (first results)))
+
+(s/defn dispatch-outgoing-message!
+  "Universe App wants to send a message to attached world(s)"
+  [this :- PluginManager
+   app-channel :- frereth-schema/async-channel
+   msg]
+  (let [source-app (pick-app-by-channel this app-channel)]
+    (throw (ex-info "Not Implemented" {}))))
+
+(s/defn start-dispatcher! :- frereth-schema/async-channel
+  ;; This really needs to
+  ;; a) pull data from the EventLoop and forward it to the appropriate plugin
+  ;; and b) pull data from plugins and forward it to the event-loop
+  ;; With router translation so it gets routed to the appropriate Client.
+  ;; This is starting to feel like it should really be its own component
+  [this :- PluginManager]
+
+  (let [done-channel (async/go
+                       (-> this :done deref))]
+    (let [incoming-event-channel (cmn-sys/in-chan (:event-loop this))
+          outgoing-event-channel (cmn-sys/ex-chan (:event-loop this))
+          five-minutes (* 5 (util/minute))]
+      (async/go-loop [process-map (-> this :processes deref)
+                      process-output-channels (mapv :output-channel (vals process-map))
+                      timeout (async/timeout five-minutes)]
+        (let [channels (conj process-output-channels done-channel incoming-event-channel timeout)
+              [v c] (async/alts! channels)]
+          (if (not= c done-channel)
+            (do
+              (condp = c
+                timeout (log/debug "PluginManager/Dispatcher: Heartbeat")
+                incoming-event-channel (dispatch-incoming-message! this c v)
+                (dispatch-outgoing-message! this c v))
+              (let [process-map (-> this :processes deref)]
+                (recur process-map
+                       (mapv :output-channel (vals))
+                       (async/timeout five-minutes))))
+            (log/debug "Exiting Plugin Manager's Dispatcher thread")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
