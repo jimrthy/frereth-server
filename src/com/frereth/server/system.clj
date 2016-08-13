@@ -30,7 +30,12 @@ be set by environment variables instead"
    :event-loop {:ctx-thread-count (-> (util/core-count) dec (max 1))
                 :direction :bind
                 :event-loop-name "frereth.server/io"
-                :server-key (curve/z85-decode "QU]/}50vX=t1mrw.{=<g%c@WCMGX^&?K2$@zzAD:")
+                ;; FIXME: Don't be so sloppy w/ private keys!
+                ;; This approach is obviously only useful for something that's
+                ;; a total throw-away first draft.
+                ;; I just want to get something that resembles security into that
+                ;; first draft
+                :server-key (curve/z85-decode "8.-(kXzdU0yfLRlj%6wHvSti0{YhYFYJV#%){Hf2")
                 :socket-type :router
                 :url {:port 7848
                       ;; Must use numeric IP address
