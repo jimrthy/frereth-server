@@ -6,36 +6,35 @@ handshake with a client.
 
 It's really still a 'next step' sort of thing."
   (:require [cljeromq.core :as mq]
+            [clojure.core.async :as async :refer (<! <!! >! >!!)]
             ;; Next requirement is (so far, strictly speaking) DEBUG ONLY
             [clojure.java.io :as io]
-            [clojure.core.async :as async :refer (<! <!! >! >!!)]
+            [clojure.spec :as s]
             [com.frereth.common.async-zmq :as async-zmq]
             [com.frereth.common.communication :as com-comm]
             [com.frereth.common.schema :as common-schema]
             [com.frereth.common.util :as util]
-            [ribol.core :refer (raise)]
-            [schema.core :as s]
+            [hara.event :refer (raise)]
             [taoensso.timbre :as log
-             :refer [trace debug info warn error fatal spy with-log-level]])
-  (:import [com.frereth.common.async_zmq EventPairInterface]))
+             :refer [trace debug info warn error fatal spy with-log-level]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Schema
+;;; Specs
 
-(def message (s/either common-schema/java-byte-array s/Str))
+(s/def ::message (s/or :bytes :com.frereth.common.schema/byte-array-type
+                       :string string?))
 
-(def messages [message])
+(s/def ::messages (s/coll-of ::message))
 
-(def router-message
-  "com-comm is responsible for low-level details.
-It should probably just go ahead and finish converting
-the contents into something meaningful, but I suppose
-there might be some scenarios where we want to do
-something different
-
-TODO: Move this elsewhere"
-  (assoc com-comm/router-message
-         :contents s/Any))
+;;; com-comm is responsible for low-level details.
+;;; It should probably just go ahead and finish converting
+;;; the contents into something meaningful, but I suppose
+;;; there might be some scenarios where we want to do
+;;; something different
+;;; TODO: Move this elsewhere
+(s/def ::contents any?)
+(s/def ::router-message (s/merge :com.frereth.common.communication/router-message
+                                 (s/keys :req [::contents])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -235,16 +234,24 @@ its thing. Circular references are bad, mmkay?"
 
     (async/thread (authenticator ctx done-reference auth-port))))
 
-(s/defn reader :- router-message
+(s/fdef reader
+        :args (s/cat :sock :cljeromq.core/socket)
+        :ret ::router-message)
+(defn reader
   ;; This is responsible for translating
   ;; a message that it reads from the socket into
   ;; something useful
-  [sock :- mq/Socket]
+  [sock]
+  ;; This takes a low-level Socket instead of its own ::socket-description.
+  ;; This seems like a poor API decision.
   (com-comm/router-recv! sock))
 
-(s/defn writer
-  [sock :- mq/Socket
-   msg :- router-message]
+(s/fdef writer
+        :args (s/cat :sock :cljeromq.core/socket
+                     :msg ::router-message)
+        :ret any?)
+(defn writer
+  [sock msg]
   (log/debug "Sending router message:\n"
              (util/pretty msg))
   (com-comm/router-send! sock msg))
@@ -281,7 +288,10 @@ its thing. Circular references are bad, mmkay?"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(s/defn ctor-interface :- EventPairInterface
+(s/fdef ctor-interface
+        :args (s/cat :_ any?)
+        :ret :com.frereth.common.async-zmq/event-pair-interface)
+(defn ctor-interface
   [_]
   (let [in-chan (async/chan)
         external-reader reader

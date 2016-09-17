@@ -4,12 +4,12 @@
             [clojure.string :as str]
             [clojure.pprint :refer (pprint)]
             [clojure.repl :refer :all]
+            [clojure.spec :as s]
             [clojure.test :as test]
             [clojure.tools.namespace.repl :refer (refresh refresh-all)]
             [com.frereth.common.util :as util]
             [com.frereth.server.system :as system]
-            [com.stuartsierra.component :as component]
-            [schema.core :as s]))
+            [com.stuartsierra.component :as component]))
 
 (def system nil)
 ;; Can't do this here.

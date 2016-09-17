@@ -1,17 +1,18 @@
 (ns com.frereth.server.system
   (:require
    [clojure.core.async :as async]
+   [clojure.spec :as s]
    [com.frereth.common.async-zmq :as async-zmq]
+   [com.frereth.common.schema]
    [com.frereth.common.util :as util]
    [com.stuartsierra.component :as component]
    [component-dsl.system :as cpt-dsl]
-   [schema.core :as s]
    [taoensso.timbre :as log])
-  (import #_[com.frereth.common.async_zmq EventPair EventPairInterface]
+  (:import #_[com.frereth.common.async_zmq EventPair EventPairInterface]
           [com.stuartsierra.component SystemMap]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Schema
+;;; Specs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -20,7 +21,9 @@
   "Mostly pulled out of thin air
 
 TODO: Pretty much every one of these should
-be set by environment variables instead"
+be set by environment variables instead.
+
+Well, the ones that shouldn't just go away completely"
   []
   (let [default-sock {:url {:port :override-this
                             ;; Must use numeric IP address
@@ -106,7 +109,11 @@ be set by environment variables instead"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(s/defn init :- SystemMap
+(s/fdef init
+        ;; TODO: Spec the overrides better
+        :args (s/cat :overrides any?)
+        :ret :com.frereth.common.schema/system-map)
+(defn init
   [overrides]
   (let [description {:structure (structure)
                      :dependencies (dependencies)}

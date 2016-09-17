@@ -1,52 +1,30 @@
 (ns com.frereth.server.comms.registrar
-  (:require [clojure.core.async :as async]
-            ;; Q: How do I combine these?
-            [com.frereth.common.async-zmq]  ; just for the imports
+  (:require [clj-time.core :as date]
+            [clojure.core.async :as async]
+            [clojure.spec :as s]
+            ;; Q: How do I combine these to avoid the copy/paste?
+            ;; (i.e. I really just want [com.frereth.common [async-zmq ...]]
+            [com.frereth.common.async-zmq]  ; just for the specs
             [com.frereth.common.communication :as com-comm]
             [com.frereth.common.schema :as com-skm]
             [com.frereth.common.util :as util]
 
             [com.frereth.server.auth-socket :as auth-socket]
             [com.stuartsierra.component :as component]
-            [joda-time :as date]
-            [ribol.core :refer (raise)]
+
+            [hara.event :refer (raise)]
             [schema.core :as s]
-            [taoensso.timbre :as log])
-  (:import [com.frereth.common.async_zmq EventPair]))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema
 
-(declare do-registrations)
-(s/defrecord Registrar [background-worker :- com-skm/async-channel
-                        done :- com-skm/async-channel
-                        event-loop :- EventPair]
-  ;; Make this the absolute dumbest registration manager I can possibly get away with
-  ;; I have unit tests that actually set up an authentication
-  ;; protocol, of sorts.
-  ;; In authentication.clj, which is named incorrectly.
-  ;; TODO: Add them into this mix
-  ;; After I get the rope thrown across the gorge.
-  component/Lifecycle
-  (start
-   [this]
-   (let [done (async/chan)
-         almost-started (assoc this
-                               :done done)
-         background-worker (do-registrations almost-started)]
-     (assoc almost-started
-                        :background-worker background-worker)))
-  (stop
-   [this]
-   (when-let [done (:done this)]
-     (async/close! done)
-     (let [[v c]
-           (async/alts!! [(async/timeout 250) background-worker])]
-       (when-not v
-         (log/warn "Telling the background worker to stop timed out"))))
-   (assoc this
-          :done nil
-          :background-worker nil)))
+(s/def ::backgrand-worker :com.frereth.common.schema/async-channel)
+(s/def ::done :com.frereth.common.schema/async-channel)
+(s/def ::event-loop :com.frereth.common.async-zmq/event-pair)
+(s/def ::registrar (s/keys :req-un [::background-worker
+                                    ::done
+                                    ::event-loop]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -223,6 +201,38 @@ Of course, that direction gets complicated quickly. KISS for now."
   (let [ch (-> dev/system :auth-loop :ex-chan)]
     (async/alts!! [(async/timeout 750) [ch {:contents {:xz 456}
                                             :id 789}]])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Component
+(defrecord Registrar [background-worker
+                      done
+                      event-loop]
+  ;; Make this the absolute dumbest registration manager I can possibly get away with
+  ;; I have unit tests that actually set up an authentication
+  ;; protocol, of sorts.
+  ;; In authentication.clj, which is named incorrectly.
+  ;; TODO: Add them into this mix
+  ;; After I get the rope thrown across the gorge.
+  component/Lifecycle
+  (start
+   [this]
+   (let [done (async/chan)
+         almost-started (assoc this
+                               :done done)
+         background-worker (do-registrations almost-started)]
+     (assoc almost-started
+                        :background-worker background-worker)))
+  (stop
+   [this]
+   (when-let [done (:done this)]
+     (async/close! done)
+     (let [[v c]
+           (async/alts!! [(async/timeout 250) background-worker])]
+       (when-not v
+         (log/warn "Telling the background worker to stop timed out"))))
+   (assoc this
+          :done nil
+          :background-worker nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
