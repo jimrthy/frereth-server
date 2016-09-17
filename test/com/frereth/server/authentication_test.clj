@@ -83,9 +83,11 @@
              (is (= (:problem data) "Missing users atom")))))))
 
 (comment
-  (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
+  (let [message (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
                                   {:blah [1 2 3]
                                    :frereth [[0 0 1]
-                                             [3 2 1]]}})
-                 nil)
+                                             [3 2 1]]}})]
+    (auth/dispatch message nil)
+    #_(auth/extract-known-protocols (second message))
+    #_(s/conform :com.frereth.server.authentication/protocol-versions (second message)))
   )

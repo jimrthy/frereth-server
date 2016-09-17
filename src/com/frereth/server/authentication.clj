@@ -168,6 +168,7 @@ much of the actual results to share."
   (->> protocols
        ;; TODO: Really should catch errors here
        (s/conform ::protocol-versions)
+       ::protocol-versions
        keys
        (filter known-protocol?)
        seq))
@@ -232,42 +233,42 @@ Returns nil if the version isn't supported"
                           :frereth [[0 0 1]
                                     [3 2 1]]}]
            (calculate-sorted-protocol-scores [:frereth]
-                                             protocols)))
+                                             protocols))
 
-(comment
-  (let [protocols {:blah [1 2 3]
-                   :frereth [[0 0 1]
-                             [3 2 1]]}
-        recognized (extract-known-protocols protocols)
-        scored (calculate-sorted-protocol-scores
-                recognized
-                protocols)
-        best (first scored)
-        response (dissoc best :score)]
-    response))
+         (let [protocols {:blah [1 2 3]
+                          :frereth [[0 0 1]
+                                    [3 2 1]]}
+               recognized (extract-known-protocols protocols)
+               scored (calculate-sorted-protocol-scores
+                       recognized
+                       protocols)
+               best (first scored)
+               response (dissoc best :score)]
+           response))
 
 (defmethod dispatch 'icanhaz?
   [msg system]
   "Loop through the protocols the client claims to speak. Choose the best
 one this server also speaks. Return that, or :lolz if there are no matches."
-  (let [protocols (second msg)]
-    (if protocols
+  (let [protocol-versions (second msg)]
+    (if protocol-versions
       (let [spec (s/keys :req [::protocol-versions])]
-        (if (s/valid? spec protocols)
-          (if-let [recognized
-                   (extract-known-protocols protocols)]
-            (let [scored
-                  (calculate-sorted-protocol-scores recognized
-                                                    protocols)]
-              (if-let [result (dissoc (first scored) :score)]
-                result
-                (do
-                  ;; This really shouldn't be possible
-                  (log/warn "Lost all protocols in\n" recognized)
-                  :lolz)))
-            (do
-              (comment (log/warn "No known protocol in\n" protocols))
-              :lolz))
+        (if (s/valid? spec protocol-versions)
+          (let [protocols (::protocol-versions protocol-versions)]
+            (if-let [recognized
+                     (extract-known-protocols protocol-versions)]
+              (let [scored
+                    (calculate-sorted-protocol-scores recognized
+                                                      protocols)]
+                (if-let [result (dissoc (first scored) :score)]
+                  result
+                  (do
+                    ;; This really shouldn't be possible
+                    (log/warn "Lost all protocols in\n" recognized)
+                    :lolz)))
+              (do
+                (comment) (log/warn "No known protocol in\n" protocols)
+                :lolz)))
           (do
             (log/warn (str "Invalid :me-speekz\n"
                            {:expected-format spec
