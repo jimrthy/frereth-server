@@ -10,7 +10,7 @@ before they start trying to communicate about complex things.
 TODO: Rename this to something like protocol-handshake"
   (:require [clojure.pprint :refer (pprint)]
             [com.frereth.server.connection-manager :as connection-manager]
-            [ribol.core :refer (raise)]
+            [hara.event :refer (raise)]
             [schema.core :as s]
             [taoensso.timbre :as log]))
 
