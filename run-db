@@ -1,0 +1,5 @@
+#! /bin/sh
+
+# Assumes this is on your PATH
+datomic/bin/transactor resources/transactor.properties
+

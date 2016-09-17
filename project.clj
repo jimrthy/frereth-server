@@ -5,25 +5,16 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[byte-transforms "0.1.4"]
-                 [com.datomic/datomic-free "0.9.5394" :exclusions [joda-time
-                                                                   org.clojure/clojure
-                                                                   org.clojure/tools.cli]]
                  ;; This gets its reference to guava from component-dsl's version of clojurescript.
                  ;; TODO: Fix that (I don't want/need access to clojurescript here)
                  [com.frereth/common "0.0.1-SNAPSHOT" :exclusions [com.google.guava/guava]]
+                 [com.jimrthy.substratum "0.1.0-SNAPSHOT" :exclusions [com.taoensso/encore
+                                                                       com.taoensso/timbre
+                                                                       im.chit/hara.event
+                                                                       io.aviso/pretty
+                                                                       org.clojure/core.async
+                                                                       org.clojure/tools.cli]]
                  [com.postspectacular/rotor "0.1.0"]
-                 [com.taoensso/timbre "4.7.4"]
-                 [datomic-schema "1.3.0" :exclusions [org.clojure/clojure]]
-                 ;; This really doesn't belong in here
-                 ;; Q: If not here, then where?
-                 ;; Since this has to handle database manipulation for Apps as they're installed
-                 [io.rkn/conformity "0.4.0"]
-                 ;; I'm not using these, but com.palletops/uberimage and lein-ancient
-                 ;; (in my profiles.clj)
-                 ;; are competing over older versions
-                 [org.apache.httpcomponents/httpclient "4.5.2"]
-                 [org.apache.httpcomponents/httpcore "4.4.5"]
-                 [org.apache.httpcomponents/httpmime "4.5.2"]
                  ;; For now, this next library needs to be distributed to
                  ;; a local maven repo.
                  ;; It seems like it should really take care of its handler
@@ -31,6 +22,7 @@
                  ;; it gets more complicated. Still, we shouldn't be worrying
                  ;; about details like jeromq vs jzmq here.
                  ;;[org.clojars.jimrthy/cljeromq "0.1.0-SNAPSHOT"]
+
                  ;; Q: Why aren't I inheriting this from frereth-common?
                  ;; A: It's really a bug in CIDER that hasn't been released yet.
                  ;; TODO: Need to switch to either boot or use :managed-dependencies
@@ -66,8 +58,9 @@
   ;; https://github.com/zeromq/jzmq/issues/339 has Dockerfile snippets that might be useful
   ;; for setting up a base image that's ready to be used for this
   ;; Actually, https://github.com/zeromq/jzmq/blob/master/Dockerfile has the whole
-  ;; 10 yards. It's just for zmq 3.2 (which happens to be where jzmq is still sitting)
+  ;; 10 yards. It's just for zmq 3.2
 
+  ;; TODO: Verify this
   :test-paths ["test" "src/test/clojure"]  ; default, but lein-test-refresh isn't finding them
   :test-refresh {:notify-on-success false
                  ;; Suppress some of the clojure.test cruft messages
