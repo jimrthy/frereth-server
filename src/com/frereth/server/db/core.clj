@@ -50,13 +50,13 @@ Actually, most of them belong in datomic"
 (s/def ::connection-string-builder (s/multi-spec protocol-type ::protocol))
 (defmulti build-connection-string
   "Convert a URI description map to the string that datomic actually uses"
-  ::protocol)
+  :protocol)
 
 ;;; Q: Does this really use the same spec as the build-connection-string?
 (s/def ::disconnect-spec (s/multi-spec protocol-type ::protocol))
 (defmulti disconnect
   "Disconnect from a database's URI description"
-  ::protocol)
+  :protocol)
 
 ;;; The description of datomic datalog
 ;;; TODO: Surely these have already been captured somewhere
@@ -101,27 +101,27 @@ Actually, most of them belong in datomic"
   (let [ms {:postgres "postgresql"}]
     (ms key)))
 
-(defmethod protocol-type :dev [_]
+(defmethod protocol-type ::dev [_]
   (s/keys :req [::name ::port ::server]))
-(defmethod build-connection-string :dev
+(defmethod build-connection-string ::dev
   [{:keys [name port server]}]
   (str "datomic:dev://" server ":" port "/" name))
 
-(defmethod protocol-type :free [_]
+(defmethod protocol-type ::free [_]
   (s/keys :req [::name ::port ::server]))
-(defmethod build-connection-string :free
+(defmethod build-connection-string ::free
   [{:keys [name port server]}]
   (str "datomic:free://" server ":" port "/" name))
 
-(defmethod protocol-type :ram [_]
+(defmethod protocol-type ::ram [_]
   (s/keys :req [::name]))
-(defmethod build-connection-string :ram
+(defmethod build-connection-string ::ram
   [{:keys [name]}]
   (str "datomic:mem://" name))
 
-(defmethod protocol-type :sql [_]
+(defmethod protocol-type ::sql [_]
   (s/keys :req [::name ::port ::driver ::user ::password ::server]))
-(defmethod build-connection-string :sql
+(defmethod build-connection-string ::sql
   [{:keys [::name ::port ::driver ::user ::password ::server]
     ;; Q: What, if any, of these defaults make sense?
     :or {port 5432
@@ -142,7 +142,7 @@ Actually, most of them belong in datomic"
   [details]
   (raise {:not-implemented details}))
 
-(defmethod disconnect :ram
+(defmethod disconnect ::ram
   [descr]
   ;; We really don't want to keep a reference around to these
   (let [cxn-str (build-connection-string descr)]
@@ -164,9 +164,14 @@ really aren't legal (and probably won't work)."
   [descr]
   (-> descr build-connection-string d/connect d/release))
 
-(defmethod disconnect :sql
+(defmethod disconnect ::sql
   [descr]
   (general-disconnect descr))
+
+(defmethod disconnect :default
+  [descr]
+  (throw (ex-info "Not Implemented"
+                  {:description descr})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Components

@@ -33,9 +33,9 @@ Note that pretty much all these pieces belong in substratum"
 ;; A: Until there is, just use a plain hashmap
 ;; It's tempting to make (start) convert the uri to a connection-string.
 ;; That temptation seems like a mistake.
-(s/def ::database-schema (s/keys :req [::schema-resource-name ::uri]))
+(s/def ::database-schema (s/keys :req-un [::schema-resource-name ::uri]))
 ;; The parameters to create that
-(s/def ::opt-database-schema (s/keys :opt [::schema-resource-name ::uri]))
+(s/def ::opt-database-schema (s/keys :opt-un [::schema-resource-name ::uri]))
 
 (s/def ::uniqueness #{:db.unique/identity ; attempts to insert dupe value for different entity will fail
                       :db.unique/value})  ; attempts to insert dupe value for entity w/ tempid will merge existing entity
@@ -244,6 +244,11 @@ to the actual datastructure that datomic uses"
                      :tx-description :txn-descr-seq)
         :ret any?)  ; Q: What does this return?
 (defn install-schema!
+  "This is failing unit tests, because it's broken.
+But it belongs in substratum instead of here, so I'm
+sort-of OK with that.
+My main goal at this point is to get things back into
+a shape that's solid enough to start working on it again"
   [uri-description tx-description]
   (let [uri (db/build-connection-string uri-description)]
     (comment) (log/debug "Expanding high-level schema transaction description:\n"
@@ -260,11 +265,16 @@ to the actual datastructure that datomic uses"
                 ;; We can't assign attributes to entities until
                 ;; after the transaction that generates the schema
                 (db/upsert! uri data))
-              (log/error (s/explain ::transaction-sequence structure)
-                         "Installing schema based on\n"
-                         #_(util/pretty tx) structure
-                         "\nwhich has" (count structure) "members"
-                         "wouldn't"))))))
+              (throw (ex-info (str "Invalid transaction sequence:\n"
+                                   (s/explain ::transaction-sequence structure)
+                                   "Installing schema based on\n"
+                                   #_(util/pretty tx-description) structure
+                                   "\nwhich has" (count structure) "members")
+                              {:problem-tx tx-description
+                               :problem-struct structure
+                               :tx-dscr tx-description
+                               :uri uri
+                               :uri-description uri-description})))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

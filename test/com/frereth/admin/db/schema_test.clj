@@ -33,11 +33,12 @@
 ;;; Boilerplate
 
 (defn system-for-testing
+  "Note that these are simulating records. Which means the keys can't be namespaced"
   []
   {:database-schema (db-schema/ctor {:schema-resource-name
                                      "test-schema.edn"})
    :database-uri {:description {:name (str (gensym))
-                                :protocol :ram}}})
+                                :protocol :com.frereth.server.db.core/ram}}})
 
 (defn in-mem-db-system
   "The really annoying thing about this approach is that I
@@ -57,8 +58,7 @@ can't just call the individual tests manually"
               (log/error ex "FAIL"))
             (finally
               ;; Better safe than sorry
-              (let [stopped (component/stop started-system)]
-                (alter-var-root #'system (constantly stopped))))))
+              (alter-var-root #'system component/stop))))
         (catch RuntimeException ex
           (log/error ex "Setting up baseline admin system"))))))
 
@@ -90,6 +90,14 @@ can't just call the individual tests manually"
       ;; We should get a new one every single time.
       (is (d/create-database result)))
     result))
+
+(comment
+  (let [pre-testable-system (system-for-testing)
+        started-system (component/start pre-testable-system)]
+    (try
+      (-> started-system :database-uri :description)
+      (finally (component/stop started-system))))
+  )
 
 (defn test-partition
   []
@@ -275,7 +283,15 @@ But, seriously. I had to start somewhere."
     (comment (println "Trying to connect to " cxn-str
                       "\nbased on\n" uri-dscr))
     (let [conn (d/connect cxn-str)]
-      (is (not (conformity/has-attribute? (d/db conn) :dt/dt)))
+      (when (conformity/has-attribute? (d/db conn) :dt/dt)
+        (throw (ex-info (str "Database at "
+                             cxn-str
+                             "\naka\n"
+                             (common/pretty uri-dscr)
+                             "\nalready has the :dt/dt attribute\n"
+                             "How did this happen?!")
+                        {:connection-string cxn-str
+                         :system system})))
       (let [schema-cpt (-> system :database-schema :schema-resource-name)
             _ (println "Loading transactions from " schema-cpt)
             tx-dscr (db-schema/load-transactions-from-resource schema-cpt)]

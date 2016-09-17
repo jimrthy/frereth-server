@@ -1,9 +1,7 @@
 (ns com.frereth.server.authentication-test
   (:require [clojure.pprint :refer (pprint)]  ; TODO: Switch to puget
             [clojure.test :refer (are deftest is testing)]
-            [com.frereth.server.authentication :as auth]
-            ;; Do I have any actual use for util in this?
-            [com.frereth.server.test-utils :as util])
+            [com.frereth.server.authentication :as auth])
   (:import [clojure.lang ExceptionInfo]))
 
 ;;; These messages just flat-out do not make sense in isolation.
@@ -29,20 +27,13 @@
     ;; (the schema's wrong).
     ;; Actually, the server should force us to completely and start over
     ;; from the beginning after it.
-    (try (auth/dispatch (list 'icanhaz? {:me-speekz [[:blah [nil]]
-                                                     [:whatever [nil]]]})
-                        nil)
-         (is false "How'd the bad format succeed?")
-         (catch ExceptionInfo ex
-           (let [ex-type (-> ex .getData :type)]
-             (when (not= :schema.core/error ex-type)
-               (println "Schema validation failure threw wrong exception type: " ex-type
-                        "\n" (.getData ex))
-               (pprint ex)
-               (is false "Schema validation should have failed")))))
+    (is (= :lolz (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions [[:blah [nil]]
+                                                                                                       [:whatever [nil]]]})
+                                nil))
+        "Missing protocols should fail")
 
     (is (= :lolz
-           (auth/dispatch (list 'icanhaz? {:me-speekz
+           (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
                                            {:blah [1 2 3]
                                             :whatever [:a "1.2.5"]}})
                           nil))
@@ -50,7 +41,7 @@
 
     (let [legal-protocol (first (auth/known-protocols))]
       (is (= :lolz
-             (auth/dispatch (list 'icanhaz? {:me-speekz
+             (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
                                              {:blah [nil]
                                               :frereth nil
                                               :whatever [nil]}})
@@ -63,7 +54,7 @@
       ;; Of course, anything realistic would have to specify what it
       ;; was requesting.
       (is (= {:name :frereth :version [0 0 1]}
-             (auth/dispatch (list 'icanhaz? {:me-speekz
+             (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
                                              {:blah [1 2 3]
                                               :frereth [[0 0 1]
                                                         [3 2 1]]}}) nil)) "Reasonable handshake"))
@@ -90,3 +81,11 @@
          (catch ExceptionInfo ex
            (let [data (.getData ex)]
              (is (= (:problem data) "Missing users atom")))))))
+
+(comment
+  (auth/dispatch (list 'icanhaz? {:com.frereth.server.authentication/protocol-versions
+                                  {:blah [1 2 3]
+                                   :frereth [[0 0 1]
+                                             [3 2 1]]}})
+                 nil)
+  )

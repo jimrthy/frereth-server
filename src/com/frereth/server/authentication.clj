@@ -123,7 +123,7 @@ much of the actual results to share."
   dynamic plugins that make these easy to swap in and out at will.
   I'm starting as small as I can get away with."
   [p]
-  (some (known-protocols) p))
+  ((known-protocols) p))
 
 (s/fdef compare-score
         :args (s/cat :p1 ::protocol-versions
@@ -250,33 +250,33 @@ Returns nil if the version isn't supported"
   [msg system]
   "Loop through the protocols the client claims to speak. Choose the best
 one this server also speaks. Return that, or :lolz if there are no matches."
-  (let [spec (s/coll-of (s/tuple symbol?
-                                 (s/keys :req [::protocol-versions])))]
-    ;; TODO: Log the error and return :lolz instead
-    (when-not (s/valid? spec msg)
-      (throw (ex-info "Invalid :me-speekz"
-                      {:expected-format spec
-                       :actual msg
-                       :problem (s/explain spec msg)}))))
-
-  (if-let [protocols (-> msg second :me-speekz)]
-    (if-let [recognized
-             (extract-known-protocols protocols)]
-      (let [scored
-            (calculate-sorted-protocol-scores recognized
-                                              protocols)]
-        (if-let [result (dissoc (first scored) :score)]
-          result
+  (let [protocols (second msg)]
+    (if protocols
+      (let [spec (s/keys :req [::protocol-versions])]
+        (if (s/valid? spec protocols)
+          (if-let [recognized
+                   (extract-known-protocols protocols)]
+            (let [scored
+                  (calculate-sorted-protocol-scores recognized
+                                                    protocols)]
+              (if-let [result (dissoc (first scored) :score)]
+                result
+                (do
+                  ;; This really shouldn't be possible
+                  (log/warn "Lost all protocols in\n" recognized)
+                  :lolz)))
+            (do
+              (comment (log/warn "No known protocol in\n" protocols))
+              :lolz))
           (do
-            ;; This really shouldn't be possible
-            (log/warn "Lost all protocols in\n" recognized)
+            (log/warn (str "Invalid :me-speekz\n"
+                           {:expected-format spec
+                            :actual msg
+                            :problem (s/explain spec msg)}))
             :lolz)))
       (do
-        (comment (log/warn "No known protocol in\n" protocols))
-        :lolz))
-    (do
-      (log/warn "Missing protocol list from\n" msg)
-      :lolz)))
+        (log/warn "Missing protocol list from\n" msg)
+        :lolz))))
 
 (defn authenticate
   "TODO: This really should go through something like Apache Shiro.
