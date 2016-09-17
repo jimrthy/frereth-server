@@ -3,7 +3,6 @@
             [com.frereth.common.util :as util]
             [com.frereth.server.system :as sys]
             [com.stuartsierra.component :as component]
-            [ribol.core :refer (raise)]
             [taoensso.timbre :as log])
   (:import [clojure.lang ExceptionInfo]))
 

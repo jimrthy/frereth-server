@@ -10,23 +10,32 @@ And it should tie in with a database.
 Those are really more tiers, in a real system.
 
 Then again, I still need to handle the basics for plain ol' humble localhost."
-  (:require [com.stuartsierra.component :as component]
+  (:require [clojure.spec :as s]
+            [com.stuartsierra.component :as component]
             [com.frereth.common.schema :as fr-skm]
-            [ribol.core :refer (raise)]
-            [schema.core :as s]))
+            [hara.event :refer (raise)])
+  (:import [clojure.lang IDeref]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Schema
+;;; Specs
 
-(def user
-  {:id s/Uuid
-   :nick-name s/Str
-   :socket s/Any})
+(s/def ::id uuid?)
+(s/def ::nick-name string?)
+;; Q: What is this really?
+(s/def ::socket any?)
+(s/def ::user (s/keys :req [::id ::nick-name ::socket]))
 
-(def user-directory {:s/Uuid user})
+(s/def ::user-directory (s/map-of uuid? ::user))
 
-(s/defrecord Directory [control-socket
-                        users :- fr-skm/atom-type]
+(s/def ::users (s/and #(instance? IDeref %)
+                      #(s/valid? ::user-directory (deref %))))
+(s/def ::directory (s/keys :req-un [::control-socket ::users]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Component
+
+(defrecord Directory [control-socket
+                      users]
   component/Lifecycle
   (start
    [this]
@@ -34,9 +43,9 @@ Then again, I still need to handle the basics for plain ol' humble localhost."
    (let [id (java.util.UUID/randomUUID)
          nick-name "admin"
          socket control-socket
-         base {:id id
-               :nick-name nick-name
-               :socket socket}
+         base {::id id
+               ::nick-name nick-name
+               ::socket socket}
          initial-user base
          users (or users (atom {}))]
      ;; This is strictly for the sake of getting started.
@@ -52,15 +61,18 @@ Then again, I still need to handle the basics for plain ol' humble localhost."
 
   (stop
    [this]
-   (assoc this :users {})))
+    (reset! (:users this) {})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(s/defn existing-user-ids
+(s/fdef existing-user-ids
+        :args (s/cat :this ::directory)
+        :ret (s/coll-of ::id))
+(defn existing-user-ids
   "What users does the system know about?
 TODO: Add the ability to create new users and look them up."
-  [system :- Directory]
+  [system]
   (if-let [users-atom (:users system)]
     (keys @users-atom)
     (do
@@ -68,16 +80,24 @@ TODO: Add the ability to create new users and look them up."
             :details system
             :specifics (keys system)}))))
 
-(s/defn existing-user? :- s/Bool
+(s/fdef existing-user?
+        :args (s/cat :this ::directory
+                     :user-id ::id)
+        :ret boolean?)
+(defn existing-user?
   "Does the system know about this user?"
-  [self :- Directory
-   user-id :- s/Uuid]
-  (contains? (existing-user-ids self) user-id))
+  [this user-id]
+  (contains? (existing-user-ids this) user-id))
 
+(s/fdef add-user
+        :args (s/cat :this ::directory
+                     :credentials ::user)
+        :ret ::directory)
 (defn add-user
-  [credentials system]
-  (swap! (:users system) (fn [current]
-                           (into current credentials))))
+  [this credentials]
+  (swap! (:users this) (fn [current]
+                         (assoc current (::id credentials) credentials)))
+  this)
 
 (defn new-directory
   [_]

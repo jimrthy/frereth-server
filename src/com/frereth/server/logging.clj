@@ -1,6 +1,6 @@
 (ns com.frereth.server.logging
-  (require [com.stuartsierra.component :as component]
-           [taoensso.timbre :as log]))
+  (:require [com.stuartsierra.component :as component]
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schema

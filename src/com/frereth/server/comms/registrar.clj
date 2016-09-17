@@ -11,9 +11,6 @@
 
             [com.frereth.server.auth-socket :as auth-socket]
             [com.stuartsierra.component :as component]
-
-            [hara.event :refer (raise)]
-            [schema.core :as s]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -25,6 +22,9 @@
 (s/def ::registrar (s/keys :req-un [::background-worker
                                     ::done
                                     ::event-loop]))
+(s/def ::registrar-options (s/keys :opt-un [::background-worker
+                                            ::done
+                                            ::event-loop]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
@@ -99,11 +99,14 @@ Although, honestly, for now, user makes as much sense as any"
                             (let [clicks (listen (dom/getElement "submit") "click")]
                               (go (while true
                                     (let [clicked (<! clicks)]
-                                      (raise :start-here)))))]
+                                      (throw (ex-info ":start-here" {}))))))]
                   ;; TODO: Definitely use garden to build something here
                   :css [])}))
 
-(s/defn authcz :- auth-socket/router-message
+(s/fdef authcz
+        :args (s/cat :msg :com.frereth.common.communications/router-message)
+        :ret :com.frereth.server.auth-socket/router-message)
+(defn authcz
   "This needs to do much, much more.
 Check the database for rbac. Set up a real session
 (and register that with the database).
@@ -112,7 +115,7 @@ Or, at the very least, validate that an
 OpenID (et al) token is valid.
 
 c.f. auth-socket's dispatch"
-  [msg :- com-comm/router-message]
+  [msg]
   (let [pretty-msg (try (util/pretty msg)
                         (catch RuntimeException ex
                           (log/error ex "Trying to pretty-format for logging REQUEST\n"
@@ -140,20 +143,24 @@ c.f. auth-socket's dispatch"
   (log/warn "Set up a web server and switch back to serving data that way")
   ;; TODO: Set up a web server and go back to just sending the URL
   (assoc msg
-         :expires (date/to-java-date (date/plus (date/date-time) (date/days 1)))
+         :expires (date/plus (date/date-time) (date/days 1))
          ;; TODO: Make this something meaningful
          :session-token (util/random-uuid)
          :world (define-initial-auth-world)))
 
-(s/defn possibly-authorize!
+(s/fdef possibly-authorize!
+        :args (s/cat :->out :com.frereth.common.schema/async-channel
+                     :msg :com.frereth.common.communications/router-message)
+        :ret any?)
+(defn possibly-authorize!
   "TODO: This desperately needs to happen in a background thread.
 
-Return a channel where the response will be written, add that to
+TODO: Fix the comment rot!
+Return a channel where the response will be written. Add that to
 an accumulator in do-registrations.
 
 Of course, that direction gets complicated quickly. KISS for now."
-  [->out :- com-skm/async-channel
-   msg :- com-comm/router-message]
+  [->out msg]
   (log/debug "Possibly authorizing to: " ->out)
   (try
     (let [response-body (authcz (:contents msg))
@@ -168,9 +175,11 @@ Of course, that direction gets complicated quickly. KISS for now."
       ;; Q: Does this retain the stack trace?
       (throw ex))))
 
-(s/defn do-registrations :- com-skm/async-channel
-  ;; TODO: This really seems like it should be a defnk
-  [{:keys [done event-loop ex-chan]} :- Registrar]
+(s/fdef do-registrations
+        :args (s/cat :this ::registrar)
+        :ret :com.frereth.common.schema/async-channel)
+(defn do-registrations
+  [{:keys [done event-loop ex-chan]}]
   (let [done (promise)
         interface (:interface event-loop)
         ->out (:in-chan interface)
@@ -237,6 +246,9 @@ Of course, that direction gets complicated quickly. KISS for now."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(s/defn ctor :- Registrar
+(s/fdef ctor
+        :args (s/cat :cfg ::registrar-options)
+        :ret ::registrar)
+(defn ctor
   [cfg]
   (map->Registrar cfg))

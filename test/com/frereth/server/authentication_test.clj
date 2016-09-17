@@ -3,8 +3,7 @@
             [clojure.test :refer (are deftest is testing)]
             [com.frereth.server.authentication :as auth]
             ;; Do I have any actual use for util in this?
-            [com.frereth.server.test-utils :as util]
-            [ribol.core :refer (manage on raise)])
+            [com.frereth.server.test-utils :as util])
   (:import [clojure.lang ExceptionInfo]))
 
 ;;; These messages just flat-out do not make sense in isolation.

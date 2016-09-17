@@ -1,6 +1,7 @@
 (ns com.frereth.admin.db.schema-test
   "Unit testing the database is generally considered a bad idea, but I have to start somewhere"
   (:require [clojure.pprint :refer [pprint]]
+            [clojure.spec :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [com.frereth.admin.db.schema :as db-schema]
             [com.frereth.common.util :as common]
@@ -14,9 +15,8 @@
                                            generate-schema
                                            part
                                            schema]]
+            [hara.event :refer (raise)]
             [io.rkn.conformity :as conformity]
-            [ribol.core :refer [raise]]
-            [schema.core :as s]
             [taoensso.timbre :as log])
   (:import [clojure.lang ExceptionInfo IExceptionInfo]
            [datomic.impl Exceptions$IllegalArgumentExceptionInfo]))
@@ -67,7 +67,11 @@ can't just call the individual tests manually"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Helpers
 
-(s/defn ^:always-check extract-connection-string :- s/Str
+;; TODO: ^:always-check
+(s/fdef extract-connection-string
+        :args (s/cat)
+        :ret string?)
+(defn extract-connection-string
   []
   (comment
     (println "Extracting the connection string from\n"

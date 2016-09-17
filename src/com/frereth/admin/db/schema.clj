@@ -158,7 +158,7 @@ Note that pretty much all these pieces belong in substratum"
 
 (s/fdef load-transactions-from-resource
         :args (s/cat :resource-name string?)
-        :ret :txn-descr-seq)
+        :ret ::txn-descr-seq)
 (defn load-transactions-from-resource
   [resource-name]
   (log/debug "Getting ready to load schema from: " resource-name)
@@ -243,7 +243,7 @@ to the actual datastructure that datomic uses"
         :args (s/cat :uri-description :com.frereth.system.db.core/uri-description
                      :tx-description :txn-descr-seq)
         :ret any?)  ; Q: What does this return?
-(s/defn install-schema!
+(defn install-schema!
   [uri-description tx-description]
   (let [uri (db/build-connection-string uri-description)]
     (comment) (log/debug "Expanding high-level schema transaction description:\n"
@@ -252,23 +252,19 @@ to the actual datastructure that datomic uses"
           (comment) (log/debug "Setting up schema using\n"
                                (util/pretty structure) "at\n" uri)
           (try
-            (s/validate TransactionSequence structure)
-            (catch ExceptionInfo ex
-              (log/error ex "Installing schema based on\n"
+            (if (s/valid? ::transaction-sequence structure)
+              (do
+                (doseq [step structure]
+                  (do-schema-installation uri structure))
+                          ;; This has to happen as a Step 2:
+                ;; We can't assign attributes to entities until
+                ;; after the transaction that generates the schema
+                (db/upsert! uri data))
+              (log/error (s/explain ::transaction-sequence structure)
+                         "Installing schema based on\n"
                          #_(util/pretty tx) structure
                          "\nwhich has" (count structure) "members"
-                         "is going to fail")
-              (doseq [step structure]
-                (try
-                  (s/validate IndividualTxn step)
-                  (catch ExceptionInfo ex
-                    (log/error ex "Step:\n" step))))))
-          (do-schema-installation uri structure)
-
-          ;; This has to happen as a Step 2:
-          ;; We can't assign attributes to entities until
-          ;; after the transaction that generates the schema
-          (db/upsert! uri data))))
+                         "wouldn't"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

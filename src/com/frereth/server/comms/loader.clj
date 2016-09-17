@@ -11,16 +11,20 @@ should come from whichever server told the client to request them.
 Defining 'what really belong[s] in core' is worth a lot of consideration"
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
-            [ribol.core :refer [raise]]
-            [schema.core :as s])
+            [clojure.spec :as s]
+            [com.frereth.common.schema :as fr-skm])
   (:import [java.net URL]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Internal
 
-(s/defn find-namespace :- (s/maybe URL)
-  [module-name :- s/Str
-   extension-search-order :- [s/Str]]
+(s/fdef find-namespace
+        :args (s/cat :module-name string?
+                     ;; Note that this needs to be an ordered collection, or it's pointless
+                     :extension-search-order (s/coll-of string?))
+        :ret (s/nilable (fr-skm/class-predicate URL)))
+(defn find-namespace
+  [module-name extension-search-order]
   (let [names (string/split module-name #"\.")
         folder-names (butlast names)
         file-name (last names)
@@ -35,9 +39,13 @@ Defining 'what really belong[s] in core' is worth a lot of consideration"
                                                  extension-search-order))))]
       (first almost-result))))
 
-(s/defn load-cljs-namespace :- (s/maybe s/Str)
-  [module-name :- s/Str
-   extension-search-order :- [s/Str]]
+(s/fdef load-cljs-namespace
+        :args (s/cat :module-name string?
+                     ;; Note that this needs to be an ordered collection, or it's pointless
+                     :extension-search-order (s/coll-of string?))
+        :ret (s/nilable string?))
+(defn load-cljs-namespace
+  [module-name extension-search-order]
   (when-let [url (find-namespace module-name extension-search-order)]
     ;; Note that there really isn't any reason to assume this is a file
     (slurp (io/file url))))
@@ -45,10 +53,16 @@ Defining 'what really belong[s] in core' is worth a lot of consideration"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(s/defn load-fn-ns :- (s/maybe s/Str)
-  [module-name :- s/Str]
+(s/fdef load-fn-ns
+        :args (s/cat :module-name string?)
+        :ret (s/nilable string?))
+(defn load-fn-ns
+  [module-name]
   (load-cljs-namespace module-name ["cljs" "cljc" "js"]))
 
-(s/defn load-macros :- (s/maybe s/Str)
-  [module-name :- s/Str]
+(s/fdef load-macros
+        :args (s/cat :module-name string?)
+        :ret (s/nilable string?))
+(defn load-macros
+  [module-name]
   (load-cljs-namespace module-name ["clj" "cljc"]))

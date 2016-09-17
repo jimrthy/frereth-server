@@ -1,8 +1,9 @@
 pom.xml
 *jar
-/lib/
 /classes/
 /checkouts
+/lib/
+/logs/
 /target
 .lein-deps-sum
 *.class
