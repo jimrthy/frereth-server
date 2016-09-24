@@ -1,7 +1,7 @@
 (ns com.frereth.admin.db.core
   "Fundamental 12-factor rule: admin functions should be completely separate from standard user's interface"
   (:require [clojure.spec :as s]
-            [com.frereth.admin.db.schema :as db-schema]
+            [com.jimrthy.substratum.platform :as db-schema]
             [com.stuartsierra.component :as component]
             [hara.event :refer (raise)]
             [taoensso.timbre :as log]))
