@@ -60,8 +60,9 @@ Then again, I still need to handle the basics for plain ol' humble localhost."
      (assoc this :users users)))
 
   (stop
-   [this]
-    (reset! (:users this) {})))
+      [this]
+    (when-let [users (:users this)]
+      (reset! users {}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public

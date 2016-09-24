@@ -8,8 +8,7 @@
    [com.stuartsierra.component :as component]
    [component-dsl.system :as cpt-dsl]
    [taoensso.timbre :as log])
-  (:import #_[com.frereth.common.async_zmq EventPair EventPairInterface]
-          [com.stuartsierra.component SystemMap]))
+  (:import [com.stuartsierra.component SystemMap]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Specs
@@ -74,18 +73,30 @@ Well, the ones that shouldn't just go away completely"
     :action-loop-interface com.frereth.common.async-zmq/ctor-interface
     :action-socket com.frereth.common.zmq-socket/ctor
 
+    :->auth com.frereth.common.async-component/chan-ctor
+    :auth-> com.frereth.common.async-component/chan-ctor
+    :auth-handler com.frereth.server.comms.registrar/ctor
     :auth-loop com.frereth.common.async-zmq/ctor
     :auth-loop-interface com.frereth.server.auth-socket/ctor-interface
     :auth-socket com.frereth.common.zmq-socket/ctor
-    :auth-handler com.frereth.server.comms.registrar/ctor
+    :auth-status com.frereth.common.async-component/chan-ctor
 
     :context com.frereth.common.zmq-socket/ctx-ctor
 
+    ;; Note that, if I stick with the idea of a separate
+    ;; control event loop pair, this should really go
+    ;; through com.frereth.common.system/build-event-loop-description
+    ;; as a nested Component instead.
+    ;; There just isn't any excuse for needing to know about
+    ;; all these pieces here.
+    :->control com.frereth.common.async-component/chan-ctor
+    :control-> com.frereth.common.async-component/chan-ctor
     :control-loop com.frereth.common.async-zmq/ctor
     :control-loop-interface com.frereth.common.async-zmq/ctor-interface
     :control-socket com.frereth.common.zmq-socket/ctor
+    :control-status com.frereth.common.async-component/chan-ctor
 
-    :done com.frereth.server.sentinal/ctor
+    :done component-dsl.done-manager/ctor
     :logger com.frereth.server.logging/ctor
     ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
@@ -96,12 +107,20 @@ Well, the ones that shouldn't just go away completely"
    :action-socket {:ctx :context}
 
    :auth-handler {:event-loop :auth-loop}
-   :auth-loop {:ex-sock :auth-socket, :interface :auth-loop-interface}
-   :auth-loop-interface {:ex-sock :auth-socket}
+   :auth-loop {:ex-chan :auth->
+               :ex-sock :auth-socket
+               :interface :auth-loop-interface}
+   :auth-loop-interface {:ex-sock :auth-socket
+                         :in-chan :->auth
+                         :status-chan :auth-status}
    :auth-socket {:ctx :context}
 
-   :control-loop {:ex-sock :action-socket, :interface :action-loop-interface}
-   :control-loop-interface {:ex-sock :control-socket}
+   :control-loop {:ex-chan :control->
+                  :ex-sock :action-socket
+                  :interface :action-loop-interface}
+   :control-loop-interface {:ex-sock :control-socket
+                            :in-chan :->control
+                            :status-chan :control-status}
    :control-socket {:ctx :context}
 
    :principal-manager [:control-socket]})
@@ -115,10 +134,11 @@ Well, the ones that shouldn't just go away completely"
         :ret :com.frereth.common.schema/system-map)
 (defn init
   [overrides]
-  (let [description {:structure (structure)
-                     :dependencies (dependencies)}
+  (let [struct (structure)
+        description #:component-dsl.system{:structure struct
+                                           :dependencies (dependencies)}
         options (into (defaults) overrides)]
     ;; No logger available yet
-    (println "Trying to build" (util/pretty (:structure description))
+    (println "Trying to build" (util/pretty structure)
              "\nWith configuration" (util/pretty options))
     (cpt-dsl/build description options)))
