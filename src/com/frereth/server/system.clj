@@ -1,13 +1,13 @@
 (ns com.frereth.server.system
-  (:require
-   [clojure.core.async :as async]
-   [clojure.spec :as s]
-   [com.frereth.common.async-zmq :as async-zmq]
-   [com.frereth.common.schema]
-   [com.frereth.common.util :as util]
-   [com.stuartsierra.component :as component]
-   [component-dsl.system :as cpt-dsl]
-   [taoensso.timbre :as log])
+  (:require [cljeromq.curve :as curve]
+            [clojure.core.async :as async]
+            [clojure.spec :as s]
+            [com.frereth.common.async-zmq :as async-zmq]
+            [com.frereth.common.schema]
+            [com.frereth.common.util :as util]
+            [com.stuartsierra.component :as component]
+            [component-dsl.system :as cpt-dsl]
+            [taoensso.timbre :as log])
   (:import [com.stuartsierra.component SystemMap]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -24,42 +24,26 @@ be set by environment variables instead.
 
 Well, the ones that shouldn't just go away completely"
   []
-  (let [default-sock {:url {:port :override-this
-                            ;; Must use numeric IP address
-                            :address "127.0.0.1"
-                            :protocol :tcp}
-                      :direction :bind
-                      :sock-type :router}]
-    {:action-socket (assoc-in default-sock [:url :port] 7841)
-     :action-loop {:_name "Action!"}
-     :action-loop-interface {:in-chan (async/chan)
-                             :external-reader (fn [_]
-                                                (throw (ex-info "Action Loop Reader: Not Implemented" {})))
-                             :external-writer (fn [_ _2]
-                                                (throw (ex-info "Action Loop Writer: Not Implemented" {})))}
-
-     :auth-socket (assoc-in default-sock [:url :port] 7843)
-     :auth-loop {:_name "authcz"}
-
-     ;; Almost definitely want to maximize this thread count
-     ;; Although that really depends on the environment.
-     ;; It makes sense for a production server.
-     ;; For a local one...probably not so much.
-     ;; Q: Why not?
-     ;; A: Well, context switches come to mind. I'm not
-     ;; sure whether I buy that that would be an issue.
-     ;; Whichever approach makes the most sense, we have to have at least 1.
-     :context {:thread-count (-> (util/core-count) dec (max 1))}
-
-     :control-socket (assoc default-sock
-                            :url {:protocol :inproc
-                                  :address (name (gensym))})
-     :control-loop {:_name "control"}
-     :control-loop-interface {:in-chan (async/chan)
-                              :external-reader (fn [_]
-                                                 (throw (ex-info "Control Loop Reader: Not Implemented" {})))
-                              :external-writer (fn [_ _2]
-                                                 (throw (ex-info "Control Loop Writer: Not Implemented" {})))}}))
+  {:event-loop {:direction :bind
+                :event-loop-name "Server"
+                ;; This is just a magic key I generated once and hard-coded into
+                ;; the client.
+                ;; TODO: Need to switch to real keys and certs!
+                :server-key (curve/z85-decode "8C))+8}}<P[p8%c<j)bpj2aJO5:VCU>DvB@@#LqW")
+                :socket-type :router
+                ;; Almost definitely want to maximize this thread count
+                ;; Although that really depends on the environment.
+                ;; It makes sense for a production server.
+                ;; For a local one...probably not so much.
+                ;; Q: Why not?
+                ;; A: Well, context switches come to mind. I'm not
+                ;; sure whether I buy that that would be an issue.
+                ;; Whichever approach makes the most sense, we have to have at least 1.
+                :thread-count (-> (util/core-count) dec (max 1))
+                :url {:port 7841
+                      ;; Must use numeric IP address
+                      :address "127.0.0.1"
+                      :protocol :tcp}}})
 
 (defn structure []
   ;; Note that this is overly simplified.
@@ -69,61 +53,19 @@ Well, the ones that shouldn't just go away completely"
   ;; it seems to make sense as a starting point.
   ;; Q: Would it make life simpler if I split these all into their
   ;; own processes?
-  '{:action-loop com.frereth.common.async-zmq/ctor
-    :action-loop-interface com.frereth.common.async-zmq/ctor-interface
-    :action-socket com.frereth.common.zmq-socket/ctor
-
-    :->auth com.frereth.common.async-component/chan-ctor
-    :auth-> com.frereth.common.async-component/chan-ctor
-    :auth-handler com.frereth.server.comms.registrar/ctor
-    :auth-loop com.frereth.common.async-zmq/ctor
-    :auth-loop-interface com.frereth.server.auth-socket/ctor-interface
-    :auth-socket com.frereth.common.zmq-socket/ctor
-    :auth-status com.frereth.common.async-component/chan-ctor
-
-    :context com.frereth.common.zmq-socket/ctx-ctor
-
-    ;; Note that, if I stick with the idea of a separate
-    ;; control event loop pair, this should really go
-    ;; through com.frereth.common.system/build-event-loop-description
-    ;; as a nested Component instead.
-    ;; There just isn't any excuse for needing to know about
-    ;; all these pieces here.
-    :->control com.frereth.common.async-component/chan-ctor
-    :control-> com.frereth.common.async-component/chan-ctor
-    :control-loop com.frereth.common.async-zmq/ctor
-    :control-loop-interface com.frereth.common.async-zmq/ctor-interface
-    :control-socket com.frereth.common.zmq-socket/ctor
-    :control-status com.frereth.common.async-component/chan-ctor
+  '{:context com.frereth.common.zmq-socket/ctx-ctor
 
     :done component-dsl.done-manager/ctor
+
+    :event-loop com.frereth.common.system/build-event-loop-description
+
     :logger com.frereth.server.logging/ctor
     ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
-  {:action-loop {:interface :action-loop-interface}
-   :action-loop-interface {:ex-sock :action-socket}
-   :action-socket {:ctx :context}
-
-   :auth-handler {:event-loop :auth-loop}
-   :auth-loop {:ex-chan :auth->
-               :ex-sock :auth-socket
-               :interface :auth-loop-interface}
-   :auth-loop-interface {:ex-sock :auth-socket
-                         :in-chan :->auth
-                         :status-chan :auth-status}
-   :auth-socket {:ctx :context}
-
-   :control-loop {:ex-chan :control->
-                  :ex-sock :action-socket
-                  :interface :action-loop-interface}
-   :control-loop-interface {:ex-sock :control-socket
-                            :in-chan :->control
-                            :status-chan :control-status}
-   :control-socket {:ctx :context}
-
-   :principal-manager [:control-socket]})
+  {:event-loop [:context]
+   :principal-manager {:control-socket :event-loop}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
@@ -139,6 +81,6 @@ Well, the ones that shouldn't just go away completely"
                                            :dependencies (dependencies)}
         options (into (defaults) overrides)]
     ;; No logger available yet
-    (println "Trying to build" (util/pretty structure)
+    (println "Trying to build" (util/pretty struct)
              "\nWith configuration" (util/pretty options))
     (cpt-dsl/build description options)))

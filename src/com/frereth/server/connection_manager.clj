@@ -11,6 +11,7 @@ Those are really more tiers, in a real system.
 
 Then again, I still need to handle the basics for plain ol' humble localhost."
   (:require [clojure.spec :as s]
+            [com.frereth.common.async-zmq]
             [com.stuartsierra.component :as component]
             [com.frereth.common.schema :as fr-skm]
             [hara.event :refer (raise)])
@@ -21,8 +22,7 @@ Then again, I still need to handle the basics for plain ol' humble localhost."
 
 (s/def ::id uuid?)
 (s/def ::nick-name string?)
-;; Q: What is this really?
-(s/def ::socket any?)
+(s/def ::socket :com.frereth.common.async-zmq/event-pair)
 (s/def ::user (s/keys :req [::id ::nick-name ::socket]))
 
 (s/def ::user-directory (s/map-of uuid? ::user))
