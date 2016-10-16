@@ -40,14 +40,18 @@ Well, the ones that shouldn't just go away completely"
                 ;; sure whether I buy that that would be an issue.
                 ;; Whichever approach makes the most sense, we have to have at least 1.
                 :thread-count (-> (util/core-count) dec (max 1))
-                :url {:port 7841
+                :url {:cljeromq.common/port 7841
                       ;; Must use numeric IP address
-                      :address "127.0.0.1"
-                      :protocol :tcp}}})
+                      :cljeromq.common/zmq-address "127.0.0.1"
+                      :cljeromq.common/zmq-protocol :tcp}}})
 
 (defn structure []
   ;; Note that this is overly simplified.
   ;; It would be crazy to mix the auth and action servers in the same process.
+  ;; Q: Would it?
+  ;; A: It would for an enterprise architecture.
+  ;; Q: Is it less crazy for a game server that some kid's going to be running
+  ;; with no sysadmin skills?
   ;; And the idea for a control socket was never a good idea.
   ;; But...
   ;; it seems to make sense as a starting point.
@@ -55,17 +59,67 @@ Well, the ones that shouldn't just go away completely"
   ;; own processes?
   '{:context com.frereth.common.zmq-socket/ctx-ctor
 
-    :done component-dsl.done-manager/ctor
-
     :event-loop com.frereth.common.system/build-event-loop-description
 
-    :logger com.frereth.server.logging/ctor
+    ;; Q: Does either of these still make sense?
+    ;; A: This gives (main) something to wait on, if you want to run as a CLI app
+    ;; :done component-dsl.done-manager/ctor
+    ;; This is probably pretty important, if only to get logging configured
+    ;; :logger com.frereth.server.logging/ctor
+    ;; TODO: Restore those when I'm done debugging this
     ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
+  ;; One thing that might make this more interesting than my existing cpt-dsl tests:
+  ;; I have two direct top-level components, the context and the principal-manager.
+  ;; Then nested event-loop component depends on one and is depended upon by the other.
+  ;; TODO: Add this kind of test to that
   {:event-loop [:context]
    :principal-manager {:control-socket :event-loop}})
+
+(defn initialize-description []
+  (let [struct (structure)]
+    #:component-dsl.system{:structure struct
+                           :dependencies (dependencies)}))
+
+(comment
+  ;; This isn't working predictably.
+  ;; Q: Why not?
+  ;; A: Well, this part seems fine
+  (comment (cpt-dsl/split-nested-definers (structure)))
+  ;; As does this
+  (comment (cpt-dsl/build (initialize-description) (defaults)))
+  ;; At first glance, so does this.
+  ;; Except that it looks like it isn't finding the nested component constructors
+  (comment (cpt-dsl/pre-process (assoc (initialize-description)
+                                       :component-dsl.system/options (defaults)))
+           )
+  (comment (let [true-tops (->> (initialize-description)
+                                :component-dsl.system/structure
+                                (filter (comp symbol? second))
+                                (into {}))]
+             true-tops))
+  (comment (let [nested-ctord (->> (initialize-description)
+                                   :component-dsl.system/structure
+                                   (filter (comp symbol? second))
+                                   (into {})
+                                   cpt-dsl/split-nested-definers
+                                   :component-dsl.system/definers
+                                   (cpt-dsl/call-nested-ctors (defaults)))]
+             nested-ctord))
+  (let [de-nested (->> (initialize-description)
+                       :component-dsl.system/structure
+                       (filter (comp symbol? second))
+                       (into {})
+                       cpt-dsl/split-nested-definers
+                       :component-dsl.system/definers
+                       (cpt-dsl/call-nested-ctors (defaults))
+                       (reduce cpt-dsl/de-nest-component-ctors
+                               #:component-dsl.system{:structure tops
+                                                      :dependencies dependencies}))
+        ]
+             nested-ctord))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
@@ -76,9 +130,7 @@ Well, the ones that shouldn't just go away completely"
         :ret :com.frereth.common.schema/system-map)
 (defn init
   [overrides]
-  (let [struct (structure)
-        description #:component-dsl.system{:structure struct
-                                           :dependencies (dependencies)}
+  (let [description (initialize-description)
         options (into (defaults) overrides)]
     ;; No logger available yet
     (println "Trying to build" (util/pretty struct)

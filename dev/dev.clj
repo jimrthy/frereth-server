@@ -10,7 +10,12 @@
             [clojure.tools.namespace.repl :refer (refresh refresh-all)]
             [com.frereth.common.util :as util]
             [com.frereth.server.system :as system]
-            [com.stuartsierra.component :as component]))
+            [com.stuartsierra.component :as component]
+            [component-dsl.system :as cpt-dsl]))
+
+(def +frereth-component+
+  "Just to help me track which REPL is which"
+  'server)
 
 (def system nil)
 ;; Can't do this here.
