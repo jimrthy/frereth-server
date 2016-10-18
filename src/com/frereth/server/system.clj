@@ -46,6 +46,10 @@ Well, the ones that shouldn't just go away completely"
                       :cljeromq.common/zmq-protocol :tcp}}})
 
 (defn structure []
+  (comment (throw (ex-info "Start with previous check-in commit comment"
+                           {:why "Lots of possibilities"
+                            :also "Don't forget to uncomment the commented-out pieces below"})))
+  (log/warn "Check out the TODO exception commented out just above here")
   ;; Note that this is overly simplified.
   ;; It would be crazy to mix the auth and action servers in the same process.
   ;; Q: Would it?
@@ -79,9 +83,8 @@ Well, the ones that shouldn't just go away completely"
    :principal-manager {:control-socket :event-loop}})
 
 (defn initialize-description []
-  (let [struct (structure)]
-    #:component-dsl.system{:structure struct
-                           :dependencies (dependencies)}))
+  #:component-dsl.system{:structure (structure)
+                         :dependencies (dependencies)})
 
 (comment
   ;; This isn't working predictably.
@@ -133,6 +136,6 @@ Well, the ones that shouldn't just go away completely"
   (let [description (initialize-description)
         options (into (defaults) overrides)]
     ;; No logger available yet
-    (println "Trying to build" (util/pretty struct)
+    (println "Trying to build" (util/pretty description)
              "\nWith configuration" (util/pretty options))
     (cpt-dsl/build description options)))
