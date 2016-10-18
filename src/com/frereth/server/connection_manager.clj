@@ -62,7 +62,8 @@ Then again, I still need to handle the basics for plain ol' humble localhost."
   (stop
       [this]
     (when-let [users (:users this)]
-      (reset! users {}))))
+      (reset! users {}))
+    this))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
