@@ -26,7 +26,7 @@
                  ;; Q: Why aren't I inheriting this from frereth-common?
                  ;; A: It's really a bug in CIDER that hasn't been released yet.
                  ;; TODO: Need to switch to either boot or use :managed-dependencies
-                 [org.clojure/clojure "1.9.0-alpha13"]]
+                 [org.clojure/clojure "1.9.0-alpha14"]]
   ;; Q: Is there a good way to move the extra library path up into common?
   ;; Better Q: Now that I've copied it into common, do I still need this here and in client?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))
