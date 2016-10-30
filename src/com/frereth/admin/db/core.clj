@@ -1,7 +1,7 @@
 (ns com.frereth.admin.db.core
   "Fundamental 12-factor rule: admin functions should be completely separate from standard user's interface"
   (:require [clojure.spec :as s]
-            [com.jimrthy.substratum.platform :as db-schema]
+            [com.jimrthy.substratum.installer :as schema-installer]
             [com.stuartsierra.component :as component]
             [hara.event :refer (raise)]
             [taoensso.timbre :as log]))
@@ -27,11 +27,11 @@
         :args (s/cat :this :db-owner)
         ;; Q: What does this return on success?
         :ret any?)
-(defn configure-base-schema
+(defn configure-base-schema!
   [system]
   (let [connection-string (-> system :database-uri :connection-string)]
     (log/info "Running schema installation transaction")
     (let [result
-          (db-schema/install-schema! (:database-schema system) connection-string)]
+          (schema-installer/install-platform! connection-string)]
       (log/info "Schema installed")
       result)))
