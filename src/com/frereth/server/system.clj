@@ -46,10 +46,6 @@ Well, the ones that shouldn't just go away completely"
                       :cljeromq.common/zmq-protocol :tcp}}})
 
 (defn structure []
-  (comment (throw (ex-info "Start with previous check-in commit comment"
-                           {:why "Lots of possibilities"
-                            :also "Don't forget to uncomment the commented-out pieces below"})))
-  (log/warn "Check out the TODO exception commented out just above here")
   ;; Note that this is overly simplified.
   ;; It would be crazy to mix the auth and action servers in the same process.
   ;; Q: Would it?
@@ -70,8 +66,6 @@ Well, the ones that shouldn't just go away completely"
     ;; :done component-dsl.done-manager/ctor
     ;; This is probably pretty important, if only to get logging configured
     ;; :logger com.frereth.server.logging/ctor
-    ;; TODO: Restore those when I'm done debugging this
-    ;; For auth
     :principal-manager com.frereth.server.connection-manager/new-directory})
 
 (defn dependencies []
@@ -85,44 +79,6 @@ Well, the ones that shouldn't just go away completely"
 (defn initialize-description []
   #:component-dsl.system{:structure (structure)
                          :dependencies (dependencies)})
-
-(comment
-  ;; This isn't working predictably.
-  ;; Q: Why not?
-  ;; A: Well, this part seems fine
-  (comment (cpt-dsl/split-nested-definers (structure)))
-  ;; As does this
-  (comment (cpt-dsl/build (initialize-description) (defaults)))
-  ;; At first glance, so does this.
-  ;; Except that it looks like it isn't finding the nested component constructors
-  (comment (cpt-dsl/pre-process (assoc (initialize-description)
-                                       :component-dsl.system/options (defaults)))
-           )
-  (comment (let [true-tops (->> (initialize-description)
-                                :component-dsl.system/structure
-                                (filter (comp symbol? second))
-                                (into {}))]
-             true-tops))
-  (comment (let [nested-ctord (->> (initialize-description)
-                                   :component-dsl.system/structure
-                                   (filter (comp symbol? second))
-                                   (into {})
-                                   cpt-dsl/split-nested-definers
-                                   :component-dsl.system/definers
-                                   (cpt-dsl/call-nested-ctors (defaults)))]
-             nested-ctord))
-  (let [de-nested (->> (initialize-description)
-                       :component-dsl.system/structure
-                       (filter (comp symbol? second))
-                       (into {})
-                       cpt-dsl/split-nested-definers
-                       :component-dsl.system/definers
-                       (cpt-dsl/call-nested-ctors (defaults))
-                       (reduce cpt-dsl/de-nest-component-ctors
-                               #:component-dsl.system{:structure tops
-                                                      :dependencies dependencies}))
-        ]
-             nested-ctord))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
