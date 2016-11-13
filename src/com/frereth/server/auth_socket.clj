@@ -290,7 +290,7 @@ its thing. Circular references are bad, mmkay?"
 
 (s/fdef ctor-interface
         :args (s/cat :_ any?)
-        :ret :com.frereth.common.async-zmq/event-pair-interface)
+        :ret :com.frereth.common.async-zmq/interface)
 (defn ctor-interface
   [_]
   (let [in-chan (async/chan)
