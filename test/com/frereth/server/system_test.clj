@@ -16,18 +16,11 @@
        (-> world :control-socket :socket)))
 
 (deftest start-stop []
-  ;; Seems more than a little wrong to be using an atom here. Oh well.
-  (let [world (atom nil)
-        inited (sys/init nil)
-        ;; Avoid both reserved and ephemeral ports
-        ;; At least on most systems.
-        auth-port (+ (rand-int 48109) 1025)
-        action-port (+ (rand-int 48109) 1025)
-        overridden (-> inited
-                       (update-in [:auth-socket :url :port] (constantly auth-port))
-                       (update-in [:action-socket :url :port] (constantly action-port)))]
-    (comment (println "Overridden World:\n" (util/pretty overridden)))
-    (reset! world overridden)
+  (let [initial-options {:event-loop {:url {:cljeromq.common/port (+ (rand-int 48109) 1025)}}}
+        ;; Seems more than a little wrong to be using an atom here. Oh well.
+        ;; Q: Why did I make that particular decision?
+        world (atom initial-options)]
+    (swap! world sys/init)
     (is (not (active? @world)) "World created in active state")
 
     ;; N.B. if this throws an exception, all bets are off.
@@ -50,15 +43,13 @@
           ;; In all fairness, it should. I just really didn't want to
           ;; deal with that tonight.
           (swap! world component/stop)
-          (is (not (active? world)) "World stopped")))
+          (is (not (active? @world)) "World stopped")))
       (catch ExceptionInfo ex
         (let [data (.getData ex)
-              msg (str "Failed to start system:\n"
+              cause (.getCause ex)
+              msg (str "system-test/start-stop Failed to start system:\n"
                        ex
-                       "\nDetails:\n"
-                       (util/pretty data)
-                       "\nThere's a good chance this is related to either port "
-                       auth-port " or " action-port
-                       "\nHopefully this doesn't cause serious problems, but it probably will")]
+                       "\nCause:\n"
+                       (util/pretty cause))]
           (println msg))
         (is false "TODO: Just use bind-random-port instead")))))
