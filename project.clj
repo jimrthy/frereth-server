@@ -4,7 +4,7 @@
   :url "http://frereth.com"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[byte-transforms "0.1.4"]
+  :dependencies [#_[byte-transforms "0.1.4"]  ; get this from aleph now
                  ;; This gets its reference to guava from component-dsl's version of clojurescript.
                  ;; TODO: Fix that (I don't want/need access to clojurescript here)
                  [com.frereth/common "0.0.1-SNAPSHOT" :exclusions [com.google.guava/guava]]

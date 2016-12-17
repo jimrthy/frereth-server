@@ -1,5 +1,5 @@
 (ns com.frereth.server.system
-  (:require [cljeromq.curve :as curve]
+  (:require [cljeromq.curve :as curve]  ;; Q: Is there any point to this?
             [clojure.core.async :as async]
             [clojure.spec :as s]
             [com.frereth.common.async-zmq :as async-zmq]
