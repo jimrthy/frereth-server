@@ -7,12 +7,27 @@
             ;; Although that's a detail that we should probably hide from most
             ;; clients.
             ;; That's a slippery slope, of course
-            ))
+            [com.frereth.common.aleph :as aleph]
+            [manifold.stream :as stream]))
 
-(defn gateway
-  [strm info]
-  ;; TODO: This is the entry point
-  (throw (ex-info "Not implemented" {:problem info})))
+(defn start-server
+  [handler port]
+  (tcp/start-server
+   handler
+   port))
+
+(defn fast-echo-handler
+  "Set up an arbitrary handler that will call f on the input
+before parroting...whatever it sends back.
+
+TODO: Experiment and figure out how this whole thing works"
+  [f]
+  (fn [s info]
+    ;; Notice that this really just connects s to itself.
+    ;; This is OK because it's a duplex stream.
+    (stream/connect
+     (stream/map f s)
+     s)))
 
 ;; This *must* go into a Component (or the moral equivalent)
-(tcp/start-server gateway {:port 22181})
+(start-server (fast-echo-handler inc) {:port 22181})
