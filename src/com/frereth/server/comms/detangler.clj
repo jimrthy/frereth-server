@@ -8,13 +8,8 @@
             ;; clients.
             ;; That's a slippery slope, of course
             [com.frereth.common.aleph :as aleph]
+            [com.frereth.common.zmq-socket :as zmq-socket]
             [manifold.stream :as stream]))
-
-(defn start-server
-  [handler port]
-  (tcp/start-server
-   handler
-   port))
 
 (defn fast-echo-handler
   "Set up an arbitrary handler that will call f on the input
