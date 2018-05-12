@@ -26,7 +26,7 @@
                  ;; Q: Why aren't I inheriting this from frereth-common?
                  ;; A: It's really a bug in CIDER that hasn't been released yet.
                  ;; TODO: Need to switch to either boot or use :managed-dependencies
-                 [org.clojure/clojure "1.9.0-alpha14"]]
+                 [org.clojure/clojure "1.9.0"]]
   ;; Q: Is there a good way to move the extra library path up into common?
   ;; Better Q: Now that I've copied it into common, do I still need this here and in client?
   :jvm-opts [~(str "-Djava.library.path=/usr/local/lib:" (System/getenv "LD_LIBRARY_PATH"))
@@ -62,6 +62,7 @@
   ;; 10 yards. It's just for zmq 3.2
 
   ;; TODO: Verify this
+  ;; Q: What was the idea behind the src/test/clojure part?
   :test-paths ["test" "src/test/clojure"]  ; default, but lein-test-refresh isn't finding them
   :test-refresh {:notify-on-success false
                  ;; Suppress some of the clojure.test cruft messages
