@@ -1,3 +1,4 @@
+events.txt
 pom.xml
 *jar
 /classes/
@@ -11,7 +12,7 @@ pom.xml
 .lein-git-deps
 .lein-repl-history
 .lein-plugins
+.nrepl-*
 *~
-events.txt
+\#*\#
 
-.nrepl-port

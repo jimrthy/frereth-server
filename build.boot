@@ -77,8 +77,8 @@
               ;; to maintain equivalency w/ original lein version.
               ;; Then again, that's supposed to be the point behind boot-refresh,
               ;; at least as I'm using it.
-              :dependencies [[org.clojure/java.classpath "0.2.3"
-                              :exclusions [org.clojure/clojure]]])
+              :dependencies '[[org.clojure/java.classpath "0.2.3"
+                               :exclusions [org.clojure/clojure]]])
   identity)
 
 ;; Original lein version includes a reference to the com.palletops/uberimage plugin
@@ -96,10 +96,10 @@
   []
   ;; Just because I'm prone to forget one of the vital helper steps
   ;; Note that this would probably make more sense under profile.boot.
-  ;; Except that doesn't have access to the defined in here, such
+  ;; Except that doesn't have access to the tasks defined in here, such
   ;; as...well, almost any of what it actually uses.
   ;; Q: Should they move to there also?
-  (comp (dev) (testing) (check-conflicts) (cider) (javac) (repl)))
+  (comp (dev) (testing) (check-conflicts) (cider) (repl)))
 
 (deftask run
   "Run the project."
